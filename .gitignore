@@ -3,3 +3,6 @@ node_modules/
 *.log
 Thumbs.db
 .DS_Store
+
+# Cópia local de dados de produção (LGPD): nunca versionar
+_local/
