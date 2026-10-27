@@ -7,6 +7,8 @@
 # pessoal: fica fora do git como o resto de _local/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Git Bash converte "/importar/..." em "C:/Program Files/Git/importar/..." ao chamar o docker.
+export MSYS_NO_PATHCONV=1
 
 DUMP=_local/supabase.dump
 OUT=_local/import
