@@ -69,7 +69,7 @@ Depois disso:
   - o teste-varredura de `exigirPermissao` passa.
 
 ### A5. Cálculos
-- Portar `parsers*` e `metrics*` para `src/lib/parsers` e `src/lib/metrics`, em TS e sem mudar a lógica.
+- Portar `parsers*` e `metrics*` para `src/lib/calculos/`, em TS e sem mudar a lógica. O acesso a dados que estava misturado nos metrics está especificado em `src/lib/calculos/ACESSO-A-DADOS.md`.
 - Portar os 418 asserts para Jest.
 - **Pronto quando:** os 418 asserts portados passam e a paridade sobre os dados locais dá idêntico (A7).
 
