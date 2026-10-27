@@ -1,0 +1,1240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model academia_hering {
+  id            BigInt    @id @default(autoincrement())
+  mes           DateTime  @db.Date
+  nome          String
+  cargo         String?
+  loja          String?
+  ultimo_acesso DateTime? @db.Date
+  horas         Decimal?  @db.Decimal
+  performance   Decimal?  @db.Decimal
+  unidade       String?
+  departamento  String?
+  no_cadastro   Boolean   @default(false)
+  nome_cadastro String?
+
+  @@index([mes])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model acesso_log {
+  id            BigInt   @id @default(autoincrement())
+  usuario_id    String   @db.Uuid
+  usuario_nome  String?
+  usuario_email String?
+  perfil        String?
+  evento        String
+  modulo        String?
+  dispositivo   String?
+  criado_em     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([criado_em(sort: Desc)], map: "acesso_log_criado_idx")
+  @@index([usuario_id, criado_em(sort: Desc)], map: "acesso_log_usuario_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model avaliacao_experiencia_45 {
+  id                 BigInt    @id @default(autoincrement())
+  ciclo              Int       @db.SmallInt
+  pessoa_key         String?
+  cpf                String?
+  matricula          String?
+  nome               String?
+  cargo              String?
+  papel              String?
+  unidade            String?
+  departamento       String?
+  gestor             String?
+  gestor_direto      String?
+  gestor_avaliador   String?
+  data_admissao      DateTime? @db.Date
+  data_avaliacao     DateTime? @db.Date
+  data_autoavaliacao DateTime? @db.Date
+  status_gestor      String?
+  status_auto        String?
+  martelo            Int?      @db.SmallInt
+  martelo_comentario String?
+  notas_gestor       Json      @default("{}")
+  notas_auto         Json      @default("{}")
+  comentarios_gestor Json      @default("{}")
+  comentarios_auto   Json      @default("{}")
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([data_avaliacao], map: "avaliacao_experiencia_45_data_idx")
+  @@index([departamento])
+  @@index([unidade])
+  @@index([pessoa_key], map: "ave45_feedz_pessoa_key")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model avaliacao_experiencia_90 {
+  id                 BigInt    @id @default(autoincrement())
+  ciclo              Int       @db.SmallInt
+  pessoa_key         String?
+  cpf                String?
+  matricula          String?
+  nome               String?
+  cargo              String?
+  papel              String?
+  unidade            String?
+  departamento       String?
+  gestor             String?
+  gestor_direto      String?
+  gestor_avaliador   String?
+  data_admissao      DateTime? @db.Date
+  data_avaliacao     DateTime? @db.Date
+  data_autoavaliacao DateTime? @db.Date
+  status_gestor      String?
+  status_auto        String?
+  martelo            Int?      @db.SmallInt
+  martelo_comentario String?
+  notas_gestor       Json      @default("{}")
+  notas_auto         Json      @default("{}")
+  comentarios_gestor Json      @default("{}")
+  comentarios_auto   Json      @default("{}")
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([data_avaliacao], map: "avaliacao_experiencia_90_data_idx")
+  @@index([departamento])
+  @@index([unidade])
+  @@index([pessoa_key], map: "ave90_feedz_pessoa_key")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model boletim_entradas {
+  id             BigInt   @id @default(autoincrement())
+  mes            DateTime @db.Date
+  operacao       String
+  loja           String?
+  indicador      String
+  valor          Decimal  @db.Decimal
+  atualizado_por String?
+  atualizado_em  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model boletim_fechamento {
+  id          BigInt   @id @default(autoincrement())
+  mes         DateTime @db.Date
+  operacao    String
+  dados       Json
+  fechado_por String?
+  fechado_em  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([mes, operacao])
+}
+
+model cadastro_autorizado {
+  email          String   @id
+  autorizado_por String?  @default(dbgenerated("auth.uid()")) @db.Uuid
+  criado_em      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model candidatos {
+  id                        String             @id
+  vaga_id                   String?
+  nome                      String?
+  email                     String?
+  contato                   String?
+  linkedin                  String?
+  cargo                     String?
+  marca                     String?
+  departamento              String?
+  nivel_vaga                String?
+  entrevistado_por          String?
+  data_entrevista           DateTime?          @db.Date
+  horario_entrevista        String?
+  fit_pct                   Decimal?           @db.Decimal
+  etapa_rh_status           String?
+  resultado_rh              String?
+  data_contato_rh           DateTime?          @db.Date
+  data_agendada_rh          DateTime?          @db.Date
+  motivo_reprovacao         String?
+  etapa_analise_status      String?
+  resultado_analise         String?
+  data_contato_analise      DateTime?          @db.Date
+  data_agendada_analise     DateTime?          @db.Date
+  motivo_analise            String?
+  data_analise              DateTime?          @db.Date
+  etapa_checagem_status     String?
+  resultado_checagem        String?
+  data_contato_checagem     DateTime?          @db.Date
+  data_agendada_checagem    DateTime?          @db.Date
+  motivo_checagem           String?
+  data_checagem             DateTime?          @db.Date
+  teste_pratico             String?
+  data_teste_pratico        DateTime?          @db.Date
+  etapa_gestor_status       String?
+  resultado_gestor          String?
+  data_contato_gestor       DateTime?          @db.Date
+  data_agendada_gestor      DateTime?          @db.Date
+  entrevista_gestor         String?
+  data_entrevista_gestor    DateTime?          @db.Date
+  horario_gestor            String?
+  entrevista_diretoria      String?
+  data_entrevista_diretoria DateTime?          @db.Date
+  resultado_final           String?
+  resultado                 String?
+  data_fechamento           DateTime?          @db.Date
+  fonte_captacao            String?
+  data_admissao             DateTime?          @db.Date
+  observacoes               String?
+  tags                      String[]           @default([])
+  atualizado_por            String?
+  segmento_ultima_empresa   String?
+  genero                    String?
+  faixa_etaria              String?
+  distancia_km              Decimal?           @db.Decimal
+  escolaridade              String?
+  estuda                    String?
+  turno_estudo              String?
+  cargos_possiveis          String[]           @default([])
+  link_pandape              String?
+  estado_civil              String?
+  tem_filhos                String?
+  quantidade_filhos         Int?
+  criado_em                 DateTime           @default(now()) @db.Timestamptz(6)
+  atualizado_em             DateTime           @default(now()) @db.Timestamptz(6)
+  tipo_transporte           String?
+  quantidade_passagens      Int?
+  valor_total_transporte    Decimal?           @db.Decimal
+  unidade                   String?
+  hub_alterado_em           DateTime           @default(now()) @db.Timestamptz(6)
+  vagas                     vagas?             @relation(fields: [vaga_id], references: [id], onUpdate: NoAction)
+  entrevistas               entrevistas[]
+  onboarding                onboarding[]
+  pareceres_gestor          pareceres_gestor[]
+
+  @@index([departamento])
+  @@index([hub_alterado_em])
+  @@index([nome])
+  @@index([resultado])
+  @@index([unidade])
+  @@index([vaga_id])
+}
+
+model cargos {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+model celebracoes {
+  id                      BigInt    @id @default(autoincrement())
+  codigo                  String?
+  colaborador_enviou      String?
+  unidade                 String?
+  departamento            String?
+  papel                   String?
+  cargo_enviou            String?
+  colaboradores_receberam String?
+  cargo_recebeu           String?
+  mensagem                String?
+  curtidas                Int?
+  comentarios             Int?
+  data                    DateTime? @db.Date
+
+  @@index([data])
+  @@index([departamento])
+  @@index([codigo, data], map: "celebracoes_feedz_codigo_data")
+  @@index([unidade])
+}
+
+model colaboradores {
+  id                    BigInt    @id @default(autoincrement())
+  external_id           String?   @unique
+  nome                  String?
+  nome_completo         String?
+  matricula             String?
+  email                 String?
+  cpf                   String?
+  cargo                 String?
+  cargo_visivel         String?
+  unidade               String?
+  departamento          String?
+  grupos                String?
+  papel                 String?
+  gestor_direto         String?
+  gestor_email          String?
+  etnia                 String?
+  sexo                  String?
+  genero                String?
+  data_nascimento       DateTime? @db.Date
+  data_admissao         DateTime? @db.Date
+  data_cadastro         DateTime? @db.Date
+  situacao              String?
+  ultimo_acesso         DateTime? @db.Date
+  origem_cadastro       String?
+  participa_gamificacao String?
+  desligamento_tipo     String?
+  desligamento_motivo   String?
+  ultimo_dia_trabalhado DateTime? @db.Date
+  idioma                String?
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([departamento])
+  @@index([nome_completo])
+  @@index([situacao])
+  @@index([unidade])
+}
+
+model controle_desligamento {
+  id                      BigInt                @id @default(autoincrement())
+  id_desligamento         String
+  data_solicitacao        DateTime?             @db.Date
+  solicitante             String?
+  colaborador_external_id String?
+  colaborador_nome        String
+  colaborador_cpf         String?
+  contato                 String?
+  cargo                   String?
+  unidade                 String?
+  departamento            String?
+  data_admissao           DateTime?             @db.Date
+  data_demissao           DateTime?             @db.Date
+  tipo                    String?
+  tipo_desligamento       String?
+  motivo                  String?
+  status_feedz            String?
+  status_entrevista       String?
+  data_realizacao         DateTime?             @db.Date
+  observacoes             String?
+  extra_natal             Boolean               @default(false)
+  criado_por              String?
+  criado_em               DateTime              @default(now()) @db.Timestamptz(6)
+  atualizado_por          String?
+  atualizado_em           DateTime              @default(now()) @db.Timestamptz(6)
+  motivo_detalhe          String?
+  entrevista_pesquisa     entrevista_pesquisa[]
+
+  @@index([data_demissao], map: "controle_desligamento_demissao_idx")
+  @@index([colaborador_external_id], map: "controle_desligamento_external_idx")
+  @@index([id_desligamento], map: "controle_desligamento_id_desl_idx")
+  @@index([unidade])
+}
+
+model controle_vagas {
+  id                    BigInt    @id @default(autoincrement())
+  linha                 Int?
+  data_abertura         DateTime  @db.Date
+  data_fechamento       DateTime? @db.Date
+  data_inicio           DateTime? @db.Date
+  data_cancelamento     DateTime? @db.Date
+  data_congelamento     DateTime? @db.Date
+  data_retorno          DateTime? @db.Date
+  dias_congelada        Decimal?  @db.Decimal
+  sla_dias_planilha     Decimal?  @db.Decimal
+  status_sla_planilha   String?
+  motivo_sla            String?
+  unidade               String?
+  departamento          String?
+  cargo                 String?
+  sigilosa              Boolean   @default(false)
+  tipo_vaga             String?
+  responsavel           String?
+  status_vaga           String?
+  natureza              String?
+  motivo_aumento_quadro String?
+  tipo_recrutamento     String?
+  etapa_vaga            String?
+  fit                   Decimal?  @db.Decimal
+  fonte                 String?
+  importado_em          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([data_abertura], map: "controle_vagas_abertura_idx")
+  @@index([data_fechamento], map: "controle_vagas_fechamento_idx")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model desempenho_regras_relatorio {
+  tabela String?
+  regra  String?
+  antes  String?
+  depois String?
+  em     DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@ignore
+}
+
+model engajamento_notas {
+  id           BigInt   @id @default(autoincrement())
+  dia          DateTime @db.Date
+  unidade      String?
+  departamento String?
+  dimensao     String
+  soma         Decimal  @db.Decimal
+  n            Int
+  promotores   Int      @default(0)
+  detratores   Int      @default(0)
+
+  @@index([dia])
+}
+
+model engajamento_participacao {
+  id                BigInt            @id @default(autoincrement())
+  pulso_inicio      DateTime          @db.Date
+  unidade           String?
+  departamento      String?
+  gestor            String?
+  convidados        Int?
+  respondentes      Int               @default(0)
+  engajamento_pulso engajamento_pulso @relation(fields: [pulso_inicio], references: [inicio], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pulso_inicio], map: "engajamento_participacao_pulso_idx")
+  @@index([unidade])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model engajamento_pulso {
+  id                       BigInt                     @id @default(autoincrement())
+  inicio                   DateTime                   @unique @db.Date
+  fim                      DateTime                   @db.Date
+  numero                   Int?
+  convidados               Int
+  respondentes             Int
+  parcial                  Boolean                    @default(false)
+  ultima_resposta          DateTime?                  @db.Timestamp(6)
+  fonte                    String                     @default("feedz")
+  atualizado_em            DateTime                   @default(now()) @db.Timestamptz(6)
+  engajamento_participacao engajamento_participacao[]
+}
+
+model entrevista_pesquisa {
+  id                     BigInt                 @id @default(autoincrement())
+  planilha_id            String?
+  data_inicio            DateTime?              @db.Date
+  data_conclusao         DateTime?              @db.Date
+  nome                   String?
+  email                  String?
+  telefone               String?
+  unidade                String?
+  departamento           String?
+  motivo_desligamento    String?
+  submotivo_desligamento String?
+  data_desligamento      DateTime?              @db.Date
+  trabalharia_novamente  String?
+  nps                    Int?
+  respostas              Json                   @default("{}")
+  controle_id            BigInt?
+  repetida               Boolean                @default(false)
+  controle_desligamento  controle_desligamento? @relation(fields: [controle_id], references: [id], onUpdate: NoAction)
+
+  @@index([controle_id])
+  @@index([data_desligamento], map: "entrevista_pesquisa_data_idx")
+  @@index([departamento])
+  @@index([unidade])
+}
+
+model entrevista_pesquisa_perguntas {
+  origem   String
+  ordem    Int
+  pergunta String
+
+  @@id([origem, pergunta])
+}
+
+model entrevista_solicitacao {
+  id                  BigInt    @id @default(autoincrement())
+  planilha_id         String?
+  data_solicitacao    DateTime? @db.Date
+  nome_solicitante    String?
+  nome                String?
+  cargo               String?
+  unidade             String?
+  departamento        String?
+  data_admissao       DateTime? @db.Date
+  data_demissao       DateTime? @db.Date
+  tempo_trabalho      Int?
+  tipo                String?
+  tipo_desligamento   String?
+  motivo_desligamento String?
+  status_feedz        String?
+  status_entrevista   String?
+  observacoes         String?
+
+  @@index([data_demissao], map: "entrevista_solicitacao_data_idx")
+  @@index([departamento])
+  @@index([unidade])
+}
+
+model entrevistas {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  candidato_id    String?
+  candidato_nome  String?
+  vaga_id         String?
+  cargo           String?
+  marca           String?
+  recrutador      String?
+  etapa           String?
+  tipo_entrevista String?
+  data            DateTime?   @db.Date
+  horario         String?
+  duracao         String?
+  status          String?
+  tipo_processo   String?
+  nivel_vaga      String?
+  observacao      String?
+  criado_em       DateTime    @default(now()) @db.Timestamptz(6)
+  unidade         String?
+  candidatos      candidatos? @relation(fields: [candidato_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vagas           vagas?      @relation(fields: [vaga_id], references: [id], onUpdate: NoAction)
+
+  @@index([candidato_id])
+  @@index([data])
+  @@index([unidade])
+  @@index([vaga_id])
+}
+
+model entrevistas_desligamento {
+  id                      String    @id
+  colaborador_external_id String?
+  colaborador_nome        String?
+  colaborador_cpf         String?
+  colaborador_email       String?
+  colaborador_telefone    String?
+  cargo                   String?
+  data_admissao           DateTime? @db.Date
+  data_desligamento       DateTime? @db.Date
+  unidade                 String?
+  departamento            String?
+  unidade_trabalho        String?
+  local                   String?
+  departamento_forms      String?
+  respostas               Json      @default("{}")
+  status                  String    @default("Pendente")
+  link_token              String?
+  gerado_por              String?
+  data_finalizacao        DateTime? @db.Timestamptz(6)
+  criado_em               DateTime  @default(now()) @db.Timestamptz(6)
+  atualizado_em           DateTime  @default(now()) @db.Timestamptz(6)
+  id_desligamento         String?
+
+  @@index([status])
+}
+
+model etapas {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+model experiencia_candidato {
+  id                    BigInt    @id @default(autoincrement())
+  forms_id              String?
+  data_resposta         DateTime? @db.Date
+  nome                  String?
+  unidade               String?
+  departamento          String?
+  etapa                 String?
+  nps                   Int?
+  recrutador            String?
+  motivo_nota           String?
+  clareza_vaga          String?
+  comunicacao_etapas    String?
+  feedback_retorno      String?
+  visao_empresa         String?
+  preparacao_recrutador String?
+  tempo_duracao         String?
+  tratamento_respeitoso String?
+  comentario_etapas     String?
+
+  @@index([data_resposta], map: "experiencia_candidato_data_idx")
+  @@index([departamento])
+  @@index([unidade])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fechamento_periodo {
+  id             String    @id
+  tipo           String
+  ano            Int
+  n              Int
+  textos         Json      @default("{}")
+  manuais        Json      @default("{}")
+  ocultos        String[]  @default([])
+  status         String    @default("rascunho")
+  snapshot       Json?
+  fechado_em     DateTime? @db.Timestamptz(6)
+  fechado_por    String?
+  atualizado_em  DateTime  @default(now()) @db.Timestamptz(6)
+  atualizado_por String?
+}
+
+model feedbacks {
+  id                BigInt    @id @default(autoincrement())
+  de                String?
+  para              String?
+  unidade           String?
+  departamento      String?
+  cargo             String?
+  anonimo           String?
+  template          String?
+  feedback          String?
+  avaliacao         String?
+  data              DateTime? @db.Date
+  data_visualizacao DateTime? @db.Date
+  respostas         Json      @default("{}")
+
+  @@index([data])
+  @@index([departamento])
+  @@index([unidade])
+}
+
+model fontes_captacao {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+model historico {
+  id             BigInt   @id @default(autoincrement())
+  timestamp      DateTime @default(now()) @db.Timestamptz(6)
+  acao           String?
+  vaga_id        String?
+  campo          String?
+  valor_anterior String?
+  valor_novo     String?
+  detalhes       String?
+  usuario        String?
+
+  @@index([timestamp])
+  @@index([vaga_id])
+}
+
+model hub_versoes {
+  tabela      String   @id
+  versao      BigInt   @default(0)
+  alterado_em DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model humor_individual {
+  chave                   String   @id
+  colaborador_external_id String
+  data_admissao           DateTime @db.Date
+  dia                     DateTime @db.Date
+  momento                 DateTime @db.Timestamp(6)
+  nota                    Int      @db.SmallInt
+  unidade                 String
+  departamento            String
+  pareamento              String
+  fonte                   String   @default("36. Humor.xlsx")
+  importado_em            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([colaborador_external_id, data_admissao, dia, momento], map: "humor_individual_vinculo_dia_idx")
+}
+
+model humor_mensal {
+  id           BigInt   @id @default(autoincrement())
+  mes          DateTime @db.Date
+  unidade      String?
+  departamento String?
+  registros    Int
+  soma         Decimal  @db.Decimal
+  pessoas      Int
+  dist         Json     @default("{}")
+
+  @@index([mes])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model metas_vagas {
+  ano           Int
+  mes           Int
+  meta_abertas  Int?
+  meta_fechadas Int?
+  atualizado_em DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([ano, mes])
+}
+
+model niveis_vaga {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+model onboarding {
+  id                      String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  candidato_id            String?
+  candidato_nome          String?
+  vaga_id                 String?
+  cargo                   String?
+  marca                   String?
+  departamento            String?
+  unidade                 String?
+  nivel_vaga              String?
+  data_prevista_admissao  DateTime?   @db.Date
+  status                  String      @default("Pendente")
+  motivo_nao_realizado    String?
+  data_onboarding         DateTime?   @db.Date
+  local                   String?
+  enviado_por             String?
+  enviado_em              DateTime?   @db.Timestamptz(6)
+  criado_em               DateTime    @default(now()) @db.Timestamptz(6)
+  modalidade              String?
+  carga_horaria           Decimal?    @db.Decimal
+  observacoes             String?
+  pontuacao_comportamento Int?
+  pontuacao_atendimento   Int?
+  pontuacao_cultura       Int?
+  pontuacao_engajamento   Int?
+  nota_final              Decimal?    @db.Decimal
+  candidatos              candidatos? @relation(fields: [candidato_id], references: [id], onUpdate: NoAction)
+  vagas                   vagas?      @relation(fields: [vaga_id], references: [id], onUpdate: NoAction)
+
+  @@index([candidato_id])
+  @@index([status])
+  @@index([unidade])
+  @@index([vaga_id])
+}
+
+model one_on_one {
+  id                        BigInt    @id @default(autoincrement())
+  lider                     String?
+  lider_email               String?
+  lider_departamento        String?
+  lider_papel               String?
+  liderado                  String?
+  liderado_email            String?
+  liderado_matricula        String?
+  unidade                   String?
+  departamento              String?
+  liderado_papel            String?
+  relacao                   String?
+  categoria                 String?
+  data_agendada             DateTime? @db.Date
+  data_realizada            DateTime? @db.Date
+  status                    String?
+  topicos_lider             String?
+  topicos_liderado          String?
+  anotacoes_lider           String?
+  anotacoes_liderado        String?
+  acoes_ativas_lider        String?
+  acoes_concluidas_lider    String?
+  acoes_ativas_liderado     String?
+  acoes_concluidas_liderado String?
+
+  @@index([data_realizada])
+  @@index([departamento])
+  @@index([lider])
+}
+
+model pareceres_gestor {
+  id                 String      @id
+  candidato_id       String?
+  candidato_nome     String?
+  vaga_id            String?
+  cargo              String?
+  marca              String?
+  departamento       String?
+  modelo             String
+  recrutador         String?
+  status             String      @default("Pendente")
+  dados              Json        @default("{}")
+  nivel_recomendacao Int?
+  parecer_final      String?
+  justificativa      String?
+  preenchido_por     String?
+  data_finalizacao   DateTime?   @db.Timestamptz(6)
+  criado_em          DateTime    @default(now()) @db.Timestamptz(6)
+  atualizado_em      DateTime    @default(now()) @db.Timestamptz(6)
+  link_token         String?
+  unidade            String?
+  candidatos         candidatos? @relation(fields: [candidato_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  vagas              vagas?      @relation(fields: [vaga_id], references: [id], onUpdate: NoAction)
+
+  @@index([candidato_id])
+  @@index([status])
+}
+
+model pesquisa_clima {
+  id                  BigInt    @id @default(autoincrement())
+  dimensao            String?
+  pergunta            String?
+  nota                Decimal?  @db.Decimal
+  comentario          String?
+  data_resposta       DateTime? @db.Date
+  posicao             String?
+  lider               String?
+  tempo_empresa_meses Int?
+  unidade             String?
+  departamento        String?
+
+  @@index([data_resposta], map: "pesquisa_clima_data_idx")
+  @@index([departamento])
+  @@index([dimensao])
+  @@index([unidade])
+}
+
+model pesquisa_clima_hc {
+  id           BigInt  @id @default(autoincrement())
+  unidade      String?
+  departamento String?
+  papel        String?
+  lider        String?
+  situacao     String?
+
+  @@index([unidade])
+}
+
+model portais {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model profiles {
+  id                      String    @id @db.Uuid
+  email                   String
+  nome                    String
+  perfil                  String
+  unidades                String[]  @default([])
+  departamentos           String[]  @default([])
+  permissoes              Json      @default("{}")
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  status                  String    @default("ativo")
+  status_em               DateTime? @db.Timestamptz(6)
+  status_por              String?
+  colaborador_external_id String?
+  satisfacao_areas        String[]  @default([])
+  usuarios                usuarios  @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model recrutadores {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+model recrutamento_departamentos {
+  id      BigInt  @id @default(autoincrement())
+  nome    String
+  unidade String?
+  ativo   Boolean @default(true)
+}
+
+model satisfacao_ciclo {
+  pesquisa      DateTime @id @db.Date
+  respondentes  Int
+  aptos         Int?
+  areas         String[] @default([])
+  atualizado_em DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model satisfacao_respostas {
+  id           BigInt   @id @default(autoincrement())
+  pesquisa     DateTime @db.Date
+  unidade      String?
+  departamento String?
+  area         String
+  nota         Decimal? @db.Decimal
+  melhorar     String[] @default([])
+  extra        String?
+  comentario   String?
+
+  @@index([area])
+  @@index([pesquisa])
+}
+
+model satisfacao_suporte {
+  id           BigInt   @id @default(autoincrement())
+  pesquisa     DateTime @db.Date
+  unidade      String?
+  departamento String?
+  respondentes Int
+  areas        Json     @default("{}")
+
+  @@index([pesquisa])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model satisfacao_triagem {
+  chave          String   @id
+  pesquisa       DateTime @db.Date
+  area           String
+  acao           String
+  atualizado_por String?  @db.Uuid
+  atualizado_em  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([pesquisa])
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model seguranca_fase1_relatorio {
+  item    String?
+  detalhe String?
+  em      DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@ignore
+}
+
+model solicitacoes {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo               String?
+  payload            Json      @default("{}")
+  descricao          String?
+  solicitante        String?
+  perfil_solicitante String?
+  data_solicitacao   DateTime  @default(now()) @db.Timestamptz(6)
+  status             String    @default("Pendente")
+  aprovado_por       String?
+  data_decisao       DateTime? @db.Timestamptz(6)
+  observacao_admin   String?
+
+  @@index([status])
+}
+
+model treinamento_turmas {
+  id                     BigInt    @id @default(autoincrement())
+  planilha               String
+  arquivo                String?
+  linha                  Int?
+  data                   DateTime  @db.Date
+  tema                   String
+  tema_original          String?
+  categoria              String?
+  modalidade             String?
+  local                  String?
+  hora_inicio            String?
+  hora_fim               String?
+  horas                  Decimal?  @db.Decimal
+  publico                String?
+  marcas                 String[]  @default([])
+  marca_original         String?
+  canal                  String?
+  convocados             Int?
+  presentes              Int?
+  multiplicadoras        String[]  @default([])
+  multiplicador_original String?
+  alertas                String[]  @default([])
+  importado_em           DateTime  @default(now()) @db.Timestamptz(6)
+  origem                 String    @default("planilha")
+  observacao             String?
+  criado_por             String?   @db.Uuid
+  criado_por_nome        String?
+  atualizado_em          DateTime? @db.Timestamptz(6)
+  atualizado_por         String?
+  justificativa          String?
+  justificado_em         DateTime? @db.Timestamptz(6)
+  justificado_por        String?
+  validacao              String?
+  validado_por           String?
+  validado_em            DateTime? @db.Timestamptz(6)
+  gestor_comentario      String?
+  ajuste_pedido          Boolean   @default(false)
+  ajuste_pedido_por      String?
+  ajuste_pedido_em       DateTime? @db.Timestamptz(6)
+
+  @@index([criado_por])
+  @@index([data])
+  @@index([planilha])
+}
+
+model treinamento_turmas_log {
+  id           BigInt   @id @default(autoincrement())
+  turma_id     BigInt
+  acao         String
+  quando       DateTime @default(now()) @db.Timestamptz(6)
+  usuario_id   String?  @db.Uuid
+  usuario_nome String?
+  antes        Json?
+  depois       Json?
+
+  @@index([turma_id], map: "treinamento_turmas_log_turma_idx")
+}
+
+model twygo_conteudos {
+  id              BigInt    @id @default(autoincrement())
+  codigo_conteudo String?
+  tipo            String?
+  nome            String?
+  situacao        String?
+  inscricoes      Int?
+  carga_horaria   Decimal?  @db.Decimal
+  progresso       Decimal?  @db.Decimal
+  categorias      String?
+  data_inicio     DateTime? @db.Date
+  data_termino    DateTime? @db.Date
+  criado_em       DateTime? @db.Date
+  publicado_em    DateTime? @db.Date
+
+  @@index([nome])
+}
+
+model twygo_participantes {
+  id                 BigInt    @id @default(autoincrement())
+  content_id         String?
+  content_title      String?
+  content_type       String?
+  nome_completo      String?
+  email              String?
+  unidade            String?
+  departamento       String?
+  cargo              String?
+  data_inscricao     DateTime? @db.Date
+  ultimo_acesso      DateTime? @db.Date
+  situacao_inscricao String?
+  situacao           String?
+  situacao_ambiente  String?
+  progresso          Decimal?  @db.Decimal
+  nota               Decimal?  @db.Decimal
+  frequencia         Decimal?  @db.Decimal
+  pontuacao          Decimal?  @db.Decimal
+  carga_horaria      Decimal?  @db.Decimal
+  emitido_em         DateTime? @db.Date
+  concluido_em       DateTime? @db.Date
+  aprovado_em        DateTime? @db.Date
+
+  @@index([content_title], map: "twygo_participantes_content_idx")
+  @@index([departamento])
+  @@index([nome_completo], map: "twygo_participantes_nome_idx")
+  @@index([unidade])
+}
+
+model twygo_usuarios {
+  id            BigInt    @id @default(autoincrement())
+  twygo_id      String?
+  nome_completo String?
+  email         String?
+  cpf           String?
+  ultimo_acesso DateTime? @db.Date
+  perfil        String?
+  pontuacao     Decimal?  @db.Decimal
+  progresso     Decimal?  @db.Decimal
+  situacao      String?
+  registrado_em DateTime? @db.Date
+  cargo         String?
+  unidade       String?
+  departamento  String?
+
+  @@index([departamento])
+  @@index([nome_completo], map: "twygo_usuarios_nome_idx")
+  @@index([unidade])
+}
+
+model unibe_pdv {
+  id           BigInt   @id @default(autoincrement())
+  mes          DateTime @db.Date
+  pdv          String
+  nome_pdv     String?
+  regiao       String?
+  segmento     String?
+  gerente      String?
+  supervisao   String?
+  multi        String?
+  adesao       Decimal? @db.Decimal
+  pessoas      Int?
+  unidade      String?
+  departamento String?
+
+  @@index([mes])
+}
+
+model unibe_pessoas {
+  id            BigInt   @id @default(autoincrement())
+  mes           DateTime @db.Date
+  nome          String
+  cargo         String?
+  pdv           String?
+  nome_pdv      String?
+  regiao        String?
+  segmento      String?
+  adesao        Decimal? @db.Decimal
+  unidade       String?
+  departamento  String?
+  no_cadastro   Boolean  @default(false)
+  nome_cadastro String?
+
+  @@index([mes])
+}
+
+model unidades {
+  id    BigInt  @id @default(autoincrement())
+  nome  String
+  ativo Boolean @default(true)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model upload_log {
+  id           BigInt   @id @default(autoincrement())
+  tabela       String
+  arquivo      String?
+  usuario_id   String?  @db.Uuid
+  usuario_nome String?
+  linhas       Int?
+  status       String   @default("ok")
+  erro         String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tabela, created_at(sort: Desc)], map: "upload_log_tabela_created_idx")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model usuarios {
+  id           String    @id @db.Uuid
+  email        String?
+  senha_hash   String?
+  trocar_senha Boolean   @default(false)
+  criado_em    DateTime  @default(now()) @db.Timestamptz(6)
+  ultimo_login DateTime? @db.Timestamptz(6)
+  profiles     profiles?
+}
+
+model vagas {
+  id                     String             @id
+  data_abertura          DateTime?          @db.Date
+  marca                  String?
+  unidade                String?
+  departamento           String?
+  nivel_vaga             String?
+  solicitante            String?
+  cargo                  String?
+  sigilosa               String?
+  tipo_vaga              String?
+  responsavel            String?
+  status                 String?
+  tipo_movimentacao      String?
+  motivo_aumento         String?
+  pessoa_substituida     String?
+  tipo_recrutamento      String?
+  etapa                  String?
+  motivo_sla             String?
+  motivo_sla_text        String?
+  data_congelamento      DateTime?          @db.Date
+  data_retorno           DateTime?          @db.Date
+  data_cancelamento      DateTime?          @db.Date
+  finalistas             String?
+  contratado             String?
+  fit_pct                Decimal?           @db.Decimal
+  data_fechamento        DateTime?          @db.Date
+  data_inicio            DateTime?          @db.Date
+  data_prevista_admissao DateTime?          @db.Date
+  ultima_divulgacao      String?
+  data_ultima_divulgacao DateTime?          @db.Date
+  fonte                  String?
+  quem_indicou           String?
+  observacoes            String?
+  portais_ativos         String[]           @default([])
+  fontes_divulgadas      String[]           @default([])
+  num_inscricoes         Int?
+  criado_em              DateTime           @default(now()) @db.Timestamptz(6)
+  atualizado_em          DateTime           @default(now()) @db.Timestamptz(6)
+  cota                   String?
+  tipo_cota              String?
+  hub_alterado_em        DateTime           @default(now()) @db.Timestamptz(6)
+  candidatos             candidatos[]
+  entrevistas            entrevistas[]
+  onboarding             onboarding[]
+  pareceres_gestor       pareceres_gestor[]
+
+  @@index([data_abertura])
+  @@index([departamento])
+  @@index([hub_alterado_em])
+  @@index([responsavel])
+  @@index([status])
+  @@index([unidade])
+}
+
+model viewas_log {
+  id              BigInt    @id @default(autoincrement())
+  usuario_id      String?   @db.Uuid
+  usuario_nome    String?
+  alvo_profile_id String?   @db.Uuid
+  alvo_nome       String?
+  alvo_email      String?
+  alvo_perfil     String?
+  iniciado_em     DateTime  @default(now()) @db.Timestamptz(6)
+  encerrado_em    DateTime? @db.Timestamptz(6)
+
+  @@index([alvo_profile_id], map: "viewas_log_alvo_idx")
+  @@index([iniciado_em(sort: Desc)], map: "viewas_log_iniciado_idx")
+  @@index([usuario_id], map: "viewas_log_usuario_idx")
+}
+
+model visitas_loja {
+  id                            String    @id
+  area                          String?
+  loja                          String?
+  data_visita                   DateTime? @db.Date
+  todos_presentes               String?
+  colaboradores_ausentes        String?
+  justificativa_ausencia        String?
+  clima_equipe                  String?
+  clima_melhorar                String?
+  clima_exemplo                 String?
+  uniformizados                 String?
+  nao_uniformizados             String?
+  justificativa_uniforme        String?
+  postura_gerente               String?
+  postura_gerente_melhorar      String?
+  postura_gerente_exemplo       String?
+  postura_consultores           String?
+  postura_consultores_melhorar  String?
+  postura_consultores_exemplo   String?
+  iniciativa_time               String?
+  iniciativa_time_melhorar      String?
+  iniciativa_time_exemplo       String?
+  se_apresentam                 String?
+  nao_se_apresentam             String?
+  perguntam_motivo              String?
+  nao_perguntam_motivo          String?
+  perguntam_nome                String?
+  nao_perguntam_nome            String?
+  momento_cpf                   String?
+  quais_nao_cpf_inicio          String?
+  explicam_fidelidade           String?
+  nao_explicam_fidelidade       String?
+  incentivam_experimentar       String?
+  nao_incentivam_experimentar   String?
+  oferece_adicional             String?
+  nao_oferece_adicional         String?
+  borrifa_fragrancia            String?
+  nao_borrifa_fragrancia        String?
+  menciona_boti_recicla         String?
+  nao_menciona_boti_recicla     String?
+  etapas_experimentacao         String?
+  etapas_experimentacao_falta   String?
+  incentiva_beautybox           String?
+  nao_incentiva_beautybox       String?
+  entendeu_desejo               String?
+  entendeu_desejo_melhorar      String?
+  falou_preco_quando_perguntado String?
+  preco_nao_seguiram            String?
+  criou_oportunidades           String?
+  oportunidades_melhorar        String?
+  aproveitou_acompanhante       String?
+  acompanhante_melhorar         String?
+  experimentar_premium          String?
+  premium_melhorar              String?
+  usou_pre_venda                String?
+  pre_venda_melhorar            String?
+  apresentou_alavancas          String?
+  alavancas_melhorar            String?
+  organizou_caixa_presente      String?
+  caixa_presente_melhorar       String?
+  ofereceu_acessorios_make      String?
+  acessorios_melhorar           String?
+  destacou_descontos            String?
+  descontos_melhorar            String?
+  mostrou_confianca             String?
+  confianca_melhorar            String?
+  nota_clima_engajamento        Decimal?  @db.Decimal
+  nota_botileza                 Decimal?  @db.Decimal
+  nota_atendimento360           Decimal?  @db.Decimal
+  nota_geral                    Decimal?  @db.Decimal
+  criado_por                    String?
+  criado_em                     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([area])
+  @@index([data_visita])
+}

@@ -93,7 +93,7 @@ Um arquivo só pode usar globals de arquivos carregados antes dele.
 **Permissões.**
 - **Formato das chaves:** `grupo.item`, como `indicadores.headcount`. A mesma string vira checkbox no Cadastro de Acessos, item de menu e `has_permission(key)` nas policies RLS. Ela precisa ser idêntica nos três lugares.
 - **Perfis:** `profiles.perfil` (`admin`, `rh` ou `gestor`) é só um rótulo de preset. A exceção é `admin`, que sempre tem tudo, no JS e no SQL.
-- **Recorte por unidade:** o `can_see(unidade, departamento)` restringe só o perfil `gestor`, usando `profiles.unidades` e `profiles.departamentos`. Lista vazia significa sem restrição.
+- **Recorte por unidade:** o `can_see(unidade, departamento)` restringe os perfis `gestor` e `rh`, usando `profiles.unidades` e `profiles.departamentos`. Lista vazia significa sem restrição. Conta com `status` diferente de `ativo` não vê nada. (Conferido na definição em vigor no Supabase em 27/10/2026.)
 - **Presets:** os `PRESETS` são calculados por exclusão. Para cada permissão nova, decida se ela entra em cada preset. Dado sigiloso fica fora de todos.
 - **Sincronia JS↔SQL é manual e não tem teste.** Uma chave nova exige:
   - atualizar `permissions.js`;

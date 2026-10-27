@@ -16,6 +16,8 @@ create extension if not exists pgcrypto with schema extensions;
 create extension if not exists "uuid-ossp" with schema extensions;
 
 create schema if not exists auth;
+-- pg_restore -n não recria o próprio schema; só o que está dentro dele.
+create schema if not exists conexao_private;
 
 -- Compatibilidade: as 89 funções SQL do hub usam auth.uid(). No hub novo o
 -- servidor informa o usuário da sessão com

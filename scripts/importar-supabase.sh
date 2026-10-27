@@ -26,6 +26,9 @@ psql_hub < scripts/sql/importar-01-pre.sql
 
 echo "→ Restaurando auth.users, conexao_private e public"
 dc pg_restore -U hub -d hub_rh --no-owner --no-privileges -n auth -t users /importar/supabase.dump 2> "$OUT/restore-auth.log" || true
+# -t traz a tabela e os dados, mas não a chave primária; sem ela as FKs para
+# auth.users (ex.: profiles.id) não são criadas no restore do public.
+psql_hub -c "alter table auth.users add primary key (id)"
 dc pg_restore -U hub -d hub_rh --no-owner --no-privileges -n conexao_private -n public /importar/supabase.dump 2> "$OUT/restore-public.log" || true
 # Erros esperados: "schema public already exists" e comentários de extensão.
 grep -E "^pg_restore: error" "$OUT"/restore-*.log | grep -vE 'schema "public" already exists|extension' > "$OUT/erros-restore.log" || true
