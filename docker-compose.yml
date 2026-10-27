@@ -1,0 +1,63 @@
+# Hub Sfera — ambiente local. Portas próprias para conviver com o Portal do Fera
+# (que usa 5434/5433/6379/3005 e a subnet 172.29.230.0/24).
+services:
+  db:
+    # Postgres 17: o dump do Supabase sai com pg_dump 17 e só restaura em 17+.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: hub_rh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Dump do Supabase (cópia com dado pessoal: fica fora do git, em _local/).
+      - ./_local:/importar:ro
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub -d hub_rh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Banco descartável dos testes de integração, só com dados inventados.
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: ["test"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hub_test
+      POSTGRES_PASSWORD: hub_test
+      POSTGRES_DB: hub_test
+    ports:
+      - "127.0.0.1:5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub_test -d hub_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.29.231.0/24
