@@ -6,3 +6,13 @@ Thumbs.db
 
 # Cópia local de dados de produção (LGPD): nunca versionar
 _local/
+
+# Next.js / testes
+.next/
+out/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+next-env.d.ts
+.env*.local

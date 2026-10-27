@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "plugins": []
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+}
