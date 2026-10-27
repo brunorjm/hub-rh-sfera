@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
+import { usuarioAtual } from "@/lib/sessao";
 
-export default function Inicio() {
-  redirect("/login");
+export const dynamic = "force-dynamic";
+
+export default async function Inicio() {
+  redirect((await usuarioAtual()) ? "/inicio" : "/login");
 }

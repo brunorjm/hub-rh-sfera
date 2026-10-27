@@ -13,6 +13,8 @@ const base = {
     "/node_modules/(?!(sanitize-html|htmlparser2|domhandler|domutils|dom-serializer|entities|domelementtype|is-plain-object|deepmerge|escape-string-regexp|parse-srcset|postcss)/)",
   ],
   clearMocks: true,
+  // Máquina de dev com pouca memória livre: no máximo 2 workers.
+  maxWorkers: 2,
 };
 
 const config: Config = {
