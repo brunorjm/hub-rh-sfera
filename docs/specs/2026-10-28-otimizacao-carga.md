@@ -1,7 +1,7 @@
 ---
 Documento: Spec — Hub Sfera rápido (otimização da carga de dados)
 Data: 2026-10-28
-Status: Em revisão
+Status: Aprovada em 28/10/2026, com as propostas da seção 9
 Depende de: 2026-10-27-stack-propria.md (hub já fora do Supabase, telas antigas em /hub)
 ---
 
@@ -114,7 +114,7 @@ O que falta é parar de mandar o banco inteiro para o navegador.
 | Feedz mudar a API | Job falha sem apagar nada (troca atômica) e avisa no log; upload continua como reserva |
 | Máquina de desenvolvimento com pouca memória | Medições e testes rodam um de cada vez |
 
-## 9. Decisões pendentes
+## 9. Decisões (aprovadas em 28/10/2026: valem as propostas)
 1. **Cache no navegador** (fase 2): sem cache persistente (proposta) ou com cache, mais rápido e com dado na máquina?
 2. **Visual na fase 3:** a tela antiga recebe números prontos (proposta: mais rápido de fazer) ou é reescrita em React?
 3. **Token da API da Feedz** para a fase 4: quem fornece, e se pode ser o mesmo usado pelo Portal ou um próprio do hub (proposta: próprio).
