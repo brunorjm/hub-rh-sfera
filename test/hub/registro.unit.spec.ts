@@ -8,6 +8,10 @@ const SO_AUTENTICADO = new Set([
   // Dashboard (sempre visível) de quem não tem o Boletim: boletim_resumo_publicado()
   // é concedida a authenticated e recorta por dentro (profile ativo + can_see_perfil).
   "pesquisas.boletimResumoPublicado",
+  // Galho do Organograma/Headcount/Dashboard de quem não tem a visão completa:
+  // organograma_meu_galho() é concedida a authenticated e devolve só o galho
+  // do próprio auth.uid() (no "Visualizar como", o da conta simulada).
+  "desligamento.meuGalho",
 ]);
 
 describe("registro de operações do hub", () => {

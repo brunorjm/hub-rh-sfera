@@ -21,7 +21,7 @@
       frame = document.createElement('iframe');
       frame.title = 'Organograma Sfera';
       frame.style.cssText = 'width:100%;height:calc(100vh - 150px);min-height:640px;border:0;border-radius:12px;background:#F2F4F3;display:block';
-      frame.src = 'organograma.html?v=202609290900';
+      frame.src = 'organograma.html?v=' + encodeURIComponent((window.HUB_BOOT || {}).versao || '');
       el.appendChild(frame);
       loadedOrg = org;
       return;

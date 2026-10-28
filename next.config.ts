@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // O Organograma do hub antigo abre num iframe da própria página /hub
+        // (sections/organograma.js); só ele pode ser emoldurado, e só pela mesma origem.
+        source: "/legado-ui/organograma.html",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+      {
         // Links públicos: o token não pode vazar para outro site pelo Referer.
         source: "/publico/:path*",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],

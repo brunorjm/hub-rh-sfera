@@ -5,8 +5,10 @@ import { PAGINA_HUB } from "@/server/hub/pagina-hub";
 
 export const dynamic = "force-dynamic";
 
-// Carimbo de cache dos arquivos de public/legado-ui (troque ao mudar um deles).
-const VERSAO = "20261028";
+// Carimbo de cache dos arquivos de public/legado-ui: muda a cada vez que o
+// servidor sobe (deploy ou reinício), então ninguém fica com script velho no
+// navegador. HUB_VERSAO fixa um valor, se for preciso.
+const VERSAO = process.env.HUB_VERSAO ?? Date.now().toString(36);
 
 // JSON seguro dentro de <script>: "<" e os separadores de linha U+2028/U+2029
 // viram a sequência de escape \uXXXX (nada fecha a tag nem quebra o JS).
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
     unidades: u.unidades ?? [], departamentos: u.departamentos ?? [],
     permissoes: u.permissoes ?? {}, satisfacao_areas: u.satisfacaoAreas ?? [],
   };
-  const html = PAGINA_HUB.replace("__BOOT__", () => jsonParaScript({ usuario })).replaceAll("__VERSAO__", VERSAO);
+  const html = PAGINA_HUB.replace("__BOOT__", () => jsonParaScript({ usuario, versao: VERSAO })).replaceAll("__VERSAO__", VERSAO);
   return new NextResponse(html, {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
   });

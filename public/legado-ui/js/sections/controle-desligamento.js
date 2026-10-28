@@ -73,8 +73,7 @@
   }
   async function contatoDaFeedz(externalId) {
     if (!externalId) return null;
-    const { data, error } = await sb.rpc('controle_desligamento_contato_feedz', { p_external_id: String(externalId) });
-    if (error) throw error;
+    const data = await HUB_API.chamar('desligamento.contatoFeedz', { externalId: String(externalId) });
     return data || null;
   }
 
@@ -542,11 +541,11 @@
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(linhas.length, 1), c: cab.length - 1 } }) };
     return ws;
   }
-  async function rpcTudo(fn) {
+  // Agora uma operação do servidor do Hub, em páginas de 1000.
+  async function rpcTudo(operacao) {
     let all = [], from = 0;
     for (;;) {
-      const { data, error } = await sb.rpc(fn).range(from, from + 999);
-      if (error) throw error;
+      const data = await HUB_API.chamar(operacao, { de: from, limite: 1000 });
       all = all.concat(data || []);
       if (!data || data.length < 1000) return all;
       from += 1000;
@@ -584,9 +583,8 @@
       let forms = [], ordem = [];
       const temForms = rows.some(r => r.forms && r.forms.length);
       if (temForms) {
-        forms = (await rpcTudo('controle_desligamento_respostas_forms_exportar')).filter(x => porFicha.has(String(x.controle_id)));
-        const { data, error } = await sb.from('entrevista_pesquisa_perguntas').select('origem,ordem,pergunta').order('ordem');
-        if (error) throw error;
+        forms = (await rpcTudo('desligamento.respostasFormsExportar')).filter(x => porFicha.has(String(x.controle_id)));
+        const data = await HUB_API.chamar('desligamento.perguntas', {});
         ordem = data || [];
       }
       const baseResp = (r, canal, dataResp) => [r.id || '', r.nome || '', r.unidade || '', r.departamento || '', celulaData(r.data_demissao), canal, celulaData(dataResp)];
@@ -663,8 +661,7 @@
     const m = modal('Respostas — ' + esc(r.nome), 'Entrevista de desligamento respondida pelo Forms', '<p class="sub">Carregando respostas...</p>');
     const corpo = m.lastElementChild.lastElementChild; // área de conteúdo do modal()
     try {
-      const { data, error } = await sb.rpc('controle_desligamento_respostas_forms', { p_controle_id: r.db.id });
-      if (error) throw error;
+      const data = await HUB_API.chamar('desligamento.respostasForms', { controleId: Number(r.db.id) });
       const grupos = new Map();
       for (const x of data || []) {
         if (!grupos.has(x.planilha_id)) grupos.set(x.planilha_id, { data: x.data_conclusao, antigo: x.questionario_antigo, itens: [] });

@@ -160,50 +160,53 @@
 
   // Unibê / Academia Hering (um mês) e turmas das multiplicadoras (uma planilha):
   // uma chamada; a função no banco apaga e insere na mesma transação.
-  async function salvarTreinamento(rpc, args, sql) {
-    await sb.auth.refreshSession().catch(() => {});
-    const { data, error } = await sb.rpc(rpc, args);
-    if (error) {
-      if (/does not exist|schema cache|not find/i.test(error.message)) throw new Error(`As tabelas novas ainda não existem no Supabase (rode ${sql}).`);
-      throw new Error('Erro ao gravar no Supabase: ' + error.message);
+  // Agora pelo servidor do Hub (operações turmas.*, src/server/hub/turmas.ts).
+  async function salvarTreinamento(operacao, args, sql) {
+    try { return await HUB_API.chamar(operacao, args); }
+    catch (error) {
+      if (/does not exist|schema cache|not find/i.test(error.message)) throw new Error(`As tabelas novas ainda não existem no banco (rode ${sql}).`);
+      throw new Error('Erro ao gravar: ' + error.message);
     }
-    return data;
   }
-  const salvarUnibe = (mes, pdvs, pessoas) => salvarTreinamento('treinamentos_salvar_unibe', { p_mes: mes + '-01', p_pdvs: pdvs, p_pessoas: pessoas }, 'supabase-treinamentos.sql');
-  const salvarAcademia = (mes, linhas) => salvarTreinamento('treinamentos_salvar_academia', { p_mes: mes + '-01', p_linhas: linhas }, 'supabase-treinamentos.sql');
-  const salvarTurmas = (planilha, arquivo, linhas) => salvarTreinamento('treinamento_salvar_turmas', { p_planilha: planilha, p_arquivo: arquivo, p_linhas: linhas }, 'supabase-treinamento-turmas.sql');
+  const salvarUnibe = (mes, pdvs, pessoas) => salvarTreinamento('turmas.salvarUnibe', { mes: mes + '-01', pdvs, pessoas }, 'supabase-treinamentos.sql');
+  const salvarAcademia = (mes, linhas) => salvarTreinamento('turmas.salvarAcademia', { mes: mes + '-01', linhas }, 'supabase-treinamentos.sql');
 
   // Turma lançada pela tela (Treinamento e Desenvolvimento → Turmas e
   // Multiplicadoras → Lançamentos). Depois de gravar, rebusca só a tabela de turmas.
+  // Quem lançou/alterou ("usuario") é decidido no servidor, pela sessão.
   async function salvarTurmaHub(id, dados) {
-    const r = await salvarTreinamento('treinamento_turma_salvar', { p_id: id || null, p_dados: dados }, 'supabase-treinamento-turmas.sql');
+    const { usuario, ...resto } = dados || {};
+    const r = await salvarTreinamento('turmas.salvar', { id: id || null, dados: resto }, 'supabase-treinamento-turmas.sql');
     await recarregarTurmas();
     return r;
   }
   // Só a justificativa da divergência (turma importada incompleta não passa nas validações do formulário).
+  // "usuario" fica na assinatura, mas quem justificou vem da sessão, no servidor.
   async function justificarTurmaHub(id, texto, usuario) {
-    await salvarTreinamento('treinamento_turma_justificar', { p_id: id, p_texto: texto, p_usuario: usuario }, 'supabase-treinamento-turmas-ajustes.sql');
+    await salvarTreinamento('turmas.justificar', { id, texto: texto || null }, 'supabase-treinamento-turmas-ajustes.sql');
     await recarregarTurmas();
   }
   async function excluirTurmaHub(id) {
-    await salvarTreinamento('treinamento_turma_excluir', { p_id: id }, 'supabase-treinamento-turmas.sql');
+    await salvarTreinamento('turmas.excluir', { id }, 'supabase-treinamento-turmas.sql');
     await recarregarTurmas();
   }
   // Gestor de T&D: validar / devolver a justificativa, pedir / cancelar ajuste.
+  // Quem decidiu vem da sessão, no servidor ("usuario" fica só na assinatura).
   async function gestaoTurmaHub(id, acao, comentario, usuario) {
-    await salvarTreinamento('treinamento_turma_gestao', { p_id: id, p_acao: acao, p_comentario: comentario || null, p_usuario: usuario }, 'supabase-treinamento-turmas-permissoes.sql');
+    await salvarTreinamento('turmas.gestao', { id, acao, comentario: comentario || null }, 'supabase-treinamento-turmas-permissoes.sql');
     await recarregarTurmas();
   }
   // Meses fechados no Fechamento do Período ('AAAA-MM'): a multiplicadora não edita turmas deles.
   // Sem o SQL novo, devolve lista vazia (nada travado na tela; o banco continua mandando).
   async function mesesFechadosTurmas() {
-    const { data, error } = await sb.rpc('treinamento_meses_fechados');
-    return error ? [] : (data || []);
+    try { return (await HUB_API.chamar('turmas.mesesFechados', {})) || []; }
+    catch (error) { return []; }
   }
   // Histórico de alterações de uma turma (só o gestor lê).
   async function historicoTurma(id) {
-    const { data, error } = await sb.from('treinamento_turmas_log').select('*').eq('turma_id', id).order('quando', { ascending: false });
-    if (error) throw new Error('Histórico indisponível: ' + error.message);
+    let data;
+    try { data = await HUB_API.chamar('turmas.historico', { id }); }
+    catch (error) { throw new Error('Histórico indisponível: ' + error.message); }
     return data || [];
   }
   async function recarregarTurmas() {
@@ -267,7 +270,7 @@
   }
 
   window.HUB_DAL = {
-    TABLES, loadAll, replaceTable, salvarUnibe, salvarAcademia, salvarTurmas, salvarTurmaHub, justificarTurmaHub, excluirTurmaHub, gestaoTurmaHub, mesesFechadosTurmas, historicoTurma, recarregarTurmas, logUpload, listUploadLog, listProfiles, upsertProfile, deleteProfile, setProfileStatus,
+    TABLES, loadAll, replaceTable, salvarUnibe, salvarAcademia, salvarTurmaHub, justificarTurmaHub, excluirTurmaHub, gestaoTurmaHub, mesesFechadosTurmas, historicoTurma, recarregarTurmas, logUpload, listUploadLog, listProfiles, upsertProfile, deleteProfile, setProfileStatus,
     logViewAsStart, logViewAsEnd, listViewAsLog
   };
 })();

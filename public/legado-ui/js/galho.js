@@ -30,8 +30,8 @@
     const p = (async () => {
       let res;
       try {
-        const { data, error } = await sb.rpc('organograma_meu_galho');
-        if (error) throw error;
+        // Operação do servidor do Hub; no "Visualizar como" já roda como a conta simulada.
+        const data = await HUB_API.chamar('desligamento.meuGalho', {});
         res = { rows: data || [] };
       } catch (err) {
         res = { rows: [], erro: err.message || String(err) };
