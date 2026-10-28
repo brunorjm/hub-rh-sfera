@@ -171,9 +171,12 @@
         `).join('')}</div>
       `}`;
   }
-  function abrirModalTimelineCandidato(candId) {
+  async function abrirModalTimelineCandidato(candId) {
     const c = (D().candidatos || []).find(x => x.id === candId);
     if (!c) return;
+    // As observações internas não vêm na carga da lista: busca antes de mostrar.
+    try { await R.carregarObservacoes([c]); }
+    catch (err) { alert('Não foi possível carregar as observações do candidato: ' + err.message); return; }
     abrirModal(`Timeline — ${U.escapeHtml(c.nome)}`, `Candidato ${c.id}`, resumoCandidatoHTML(c));
   }
 
@@ -218,6 +221,8 @@
   function filtrarCandidatos() {
     let res = (D().candidatos || []).slice();
     const s = listState.search.toLowerCase().trim();
+    // Observações não vêm com a lista: na primeira busca descem e a lista é refeita.
+    if (s) HUB_RECRUIT.observacoesParaBusca(D().candidatos || [], render);
     if (s) res = res.filter(c => Object.values(c).some(v => Array.isArray(v) ? v.join(' ').toLowerCase().includes(s) : String(v || '').toLowerCase().includes(s)));
     if (listState.filterVaga !== 'todas') res = res.filter(c => c.vagaId === listState.filterVaga);
     if (listState.filterRecrut !== 'todos') res = res.filter(c => c.entrevistadoPor === listState.filterRecrut);
@@ -340,9 +345,17 @@
     $('#cd-next') && $('#cd-next').addEventListener('click', () => { if (listState.page < totalPages) { listState.page++; render(); } });
   }
 
-  function exportarCandidatosCSV() {
+  async function exportarCandidatosCSV(ev) {
+    const lista = D().candidatos || [];
+    // As observações não vêm na carga da lista: busca as que faltam (em lotes
+    // de até 1000) antes de montar o arquivo; sem elas, não exporta.
+    const btn = ev && ev.currentTarget;
+    if (btn) btn.disabled = true;
+    try { await R.carregarObservacoes(lista); }
+    catch (err) { alert('Não foi possível carregar as observações para exportar: ' + err.message); return; }
+    finally { if (btn) btn.disabled = false; }
     const header = ['ID', 'Nome', 'Vaga ID', 'Cargo', 'Unidade', 'Departamento', 'Nível', 'Recrutador', 'Data Entrevista', 'Horário', 'Contato', 'E-mail', '% FIT', 'Resultado RH', 'Motivo Reprovação', 'Resultado Análise', 'Resultado Checagem', 'Resultado Gestor', 'Resultado Final', 'Data Fechamento', 'Fonte', 'Data Admissão', 'Observações'];
-    const rows = [header].concat((D().candidatos || []).map(c => [
+    const rows = [header].concat(lista.map(c => [
       c.id, c.nome, c.vagaId, c.cargo, c.unidade, c.departamento, c.nivelVaga, c.entrevistadoPor, c.dataEntrevista, c.horarioEntrevista,
       c.contato, c.email, c.fitPct, c.resultadoRh, c.motivoReprovacao, c.resultadoAnalise, c.resultadoChecagem, c.resultadoGestor,
       c.resultadoFinal, c.dataFechamento, c.fonteCaptacao, c.dataAdmissao, c.observacoes
@@ -441,11 +454,23 @@
     };
   }
 
-  function openForm(id) {
+  async function openForm(id) {
+    const c = id ? (D().candidatos || []).find(x => x.id === id) : null;
+    // As observações não vêm na carga da lista. O Salvar grava o formulário
+    // inteiro (inclusive "observacoes"), então a edição NUNCA abre sem elas:
+    // abriria com o campo vazio e gravaria por cima do texto do banco.
+    if (c && !R.observacoesCarregadas(c)) {
+      let erro = null;
+      try { await R.carregarObservacoes([c]); } catch (err) { erro = err; }
+      if (!R.observacoesCarregadas(c)) {
+        alert('Não foi possível carregar as observações do candidato' + (erro ? ': ' + erro.message : '. Atualize os dados e tente de novo.'));
+        if (view === 'form') { view = 'list'; render(); }
+        return;
+      }
+    }
     editingCandId = id;
     const defaults = defaultCandForm();
     if (id) {
-      const c = (D().candidatos || []).find(x => x.id === id);
       candForm = c ? Object.assign({}, defaults, c) : defaults;
       // Campos como Status da etapa/Resultado mostram um valor padrão só na
       // tela (ex.: "Em andamento") quando vêm null do banco (nunca foram

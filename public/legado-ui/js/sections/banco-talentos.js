@@ -122,6 +122,8 @@
     let lista = getBanco();
 
     const s = U.normalizeText(btState.search);
+    // Observações não vêm com a lista: na primeira busca descem e a tabela é refeita.
+    if (s) HUB_RECRUIT.observacoesParaBusca(lista, () => renderTable(el));
     if (s) lista = lista.filter(c => Object.values(c).some(v => U.normalizeText(v).includes(s)));
     if (btState.vaga !== 'todas') lista = lista.filter(c => c.vagaId === btState.vaga);
     if (btState.recrut !== 'todos') lista = lista.filter(c => c.entrevistadoPor === btState.recrut);

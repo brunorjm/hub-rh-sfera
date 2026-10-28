@@ -62,13 +62,34 @@
   // próximo código de negócio (CAND-2026-XXX) a partir dessa lista truncada,
   // ele gerava IDs que colidiam com linhas reais só que invisíveis no
   // cliente (erro "duplicate key" persistente mesmo com poucos usuários
-  // simultâneos). dal-indicadores.js já pagina (ver PAGE=1000 lá); aqui não
-  // paginava — corrigido buscando em blocos de 1000 até a página vir vazia.
-  const PAGE = 1000;
+  // simultâneos). dal-indicadores.js já pagina; aqui não paginava —
+  // corrigido buscando em blocos até a página vir incompleta. Páginas de 5000
+  // (máximo da operação no servidor): menos idas e voltas.
+  const PAGE = 5000;
+  // Tabelas lidas ao mesmo tempo (as outras esperam a vez).
+  const SIMULTANEAS = 4;
+
+  // Roda fn(item, índice) para cada item, no máximo `limite` ao mesmo tempo.
+  // Nunca rejeita: devolve, na ordem dos itens, { ok, valor } ou { ok: false, erro }.
+  async function emParalelo(itens, limite, fn) {
+    const res = new Array(itens.length);
+    let proximo = 0;
+    async function trabalhador() {
+      while (proximo < itens.length) {
+        const i = proximo++;
+        try { res[i] = { ok: true, valor: await fn(itens[i], i) }; }
+        catch (erro) { res[i] = { ok: false, erro }; }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limite, itens.length) }, trabalhador));
+    return res;
+  }
+
   // Paginação com ordem fixa (por id): sem "order", o banco não garante a
   // mesma ordem entre uma página e outra e podia repetir ou pular linhas.
   // `desde` (opcional): só as linhas alteradas depois desse instante (vagas e candidatos).
   // Páginas por id crescente pela operação recrutamento.lerPagina (servidor do Hub).
+  // Candidatos vêm SEM "observacoes" (texto longo): ver carregarObservacoes.
   async function fetchAll(table, colunas, desde) {
     let all = [];
     let aposId = null;
@@ -149,14 +170,16 @@
     const errors = [];
     const versoes = await lerVersoes();
     const completa = !versoes || !!(opts && opts.completa) || Date.now() - ultimaCompleta > RECARGA_COMPLETA_MS;
-    for (const t of RECRUIT_TABLES) {
-      try { await atualizarTabela(t, versoes && versoes[t], completa); }
-      catch (err) {
+    // Tabelas em paralelo (até SIMULTANEAS); os erros saem na ordem de RECRUIT_TABLES.
+    const res = await emParalelo(RECRUIT_TABLES, SIMULTANEAS, t => atualizarTabela(t, versoes && versoes[t], completa));
+    RECRUIT_TABLES.forEach((t, i) => {
+      const err = res[i].ok ? null : (res[i].erro || {});
+      if (err) {
         if (OPTIONAL_TABLES.has(t) && /does not exist|schema cache|could not find/i.test(err.message || '')) CACHE[t] = { rows: [] };
         else errors.push(`${t}: ${err.message}`);
       }
       window.HUB_RECRUIT_DATA[t] = CACHE[t] ? CACHE[t].rows.slice() : [];
-    }
+    });
     if (completa && !errors.length) ultimaCompleta = Date.now();
     const chave = versoes ? ['controle_desligamento', 'entrevistas_desligamento', 'entrevista_pesquisa'].map(t => (versoes[t] || {}).versao).join('|') : null;
     if (!completa && chave && chave === resumosChave) {
@@ -175,16 +198,19 @@
     // [] = a pessoa não tem linhas no seu recorte.
     // + quais fichas do Controle têm resposta do Forms (sem as respostas;
     // supabase-controle-respostas-forms.sql — vazio sem a permissão do Controle).
-    for (const [fn, destino] of [['controle_desligamento_indicadores', 'controle_desligamento_ind'], ['entrevistas_desligamento_indicadores', 'entrevistas_desligamento_ind'], ['controle_desligamento_respostas_forms_resumo', 'controle_respostas_forms']]) {
-      try {
-        const all = await withTimeout(HUB_API.chamar('recrutamento.resumo', { funcao: fn }), QUERY_TIMEOUT_MS, 'tempo esgotado buscando o resumo ' + fn);
-        RESUMOS[destino] = (all || []).map(toCamelRow);
-      } catch (err) {
+    // Os três resumos em paralelo; os erros saem na mesma ordem de antes.
+    const fontes = [['controle_desligamento_indicadores', 'controle_desligamento_ind'], ['entrevistas_desligamento_indicadores', 'entrevistas_desligamento_ind'], ['controle_desligamento_respostas_forms_resumo', 'controle_respostas_forms']];
+    const lidos = await emParalelo(fontes, SIMULTANEAS, ([fn]) =>
+      withTimeout(HUB_API.chamar('recrutamento.resumo', { funcao: fn }), QUERY_TIMEOUT_MS, 'tempo esgotado buscando o resumo ' + fn));
+    fontes.forEach(([fn, destino], i) => {
+      if (lidos[i].ok) RESUMOS[destino] = (lidos[i].valor || []).map(toCamelRow);
+      else {
+        const err = lidos[i].erro || {};
         RESUMOS[destino] = null;
         if (!/does not exist|schema cache|could not find/i.test(err.message || '')) { errors.push(fn + ': ' + err.message); resumosOk = false; }
       }
       window.HUB_RECRUIT_DATA[destino] = Array.isArray(RESUMOS[destino]) ? RESUMOS[destino].slice() : RESUMOS[destino];
-    }
+    });
     resumosChave = resumosOk ? chave : null;
     if (errors.length) throw new Error('Não consegui atualizar os dados do Recrutamento — ' + errors.join('; '));
     return window.HUB_RECRUIT_DATA;
@@ -194,11 +220,57 @@
   // módulo Indicadores) e recarregadas manualmente depois de editar em
   // Administração → Cadastros do Recrutamento.
   async function reloadMasterLists() {
-    for (const t of MASTER_TABLES) {
+    // Em paralelo (até SIMULTANEAS); a primeira falha, na ordem de MASTER_TABLES, sobe.
+    const res = await emParalelo(MASTER_TABLES, SIMULTANEAS, async t => {
       const data = await HUB_API.chamar('recrutamento.listarCadastro', { tabela: t });
       window.HUB_RECRUIT_DATA[t] = (data || []).map(toCamelRow);
-    }
+    });
+    const falha = res.find(r => !r.ok);
+    if (falha) throw falha.erro;
     return window.HUB_RECRUIT_DATA;
+  }
+
+  // ---- Observações dos candidatos, sob demanda ----------------------------
+  // A carga (fetchAll) não traz candidatos.observacoes (texto longo). Quem
+  // mostra, edita ou exporta as observações chama carregarObservacoes(lista)
+  // ANTES: elas ficam no próprio objeto do candidato (o mesmo do CACHE) e não
+  // são buscadas de novo. Candidato alterado volta do banco como objeto novo
+  // (sem a chave), e a próxima abertura busca a observação atualizada.
+  // "Carregada" = o objeto tem a chave "observacoes" (mesmo que null).
+  const LOTE_OBSERVACOES = 1000;
+  function observacoesCarregadas(c) { return !!c && Object.prototype.hasOwnProperty.call(c, 'observacoes'); }
+  async function carregarObservacoes(candidatos) {
+    const faltam = (candidatos || []).filter(c => c && c.id != null && !observacoesCarregadas(c));
+    for (let i = 0; i < faltam.length; i += LOTE_OBSERVACOES) {
+      const lote = faltam.slice(i, i + LOTE_OBSERVACOES);
+      const data = await withTimeout(
+        HUB_API.chamar('recrutamento.observacoes', { ids: lote.map(c => String(c.id)) }),
+        QUERY_TIMEOUT_MS,
+        'tempo esgotado buscando as observações dos candidatos'
+      );
+      const porId = new Map((data || []).map(r => [String(r.id), r.observacoes]));
+      // Id que não voltou (apagado ou fora do recorte) continua "não carregado".
+      for (const c of lote) if (porId.has(String(c.id))) c.observacoes = porId.get(String(c.id));
+    }
+    return candidatos;
+  }
+
+  // Busca livre (Candidatos, Banco de Talentos) também procura nas observações,
+  // que não vêm com a lista. Na primeira busca elas descem em segundo plano
+  // (~1 MB comprimido para todos) e a lista é refeita. Ids que o servidor não
+  // devolve (fora do recorte) não são pedidos de novo, para não repetir sem fim.
+  const obsTentadas = new Set();
+  let obsEmAndamento = null;
+  function observacoesParaBusca(lista, aoCarregar) {
+    const faltam = (lista || []).filter(c => c && c.id != null && !observacoesCarregadas(c) && !obsTentadas.has(String(c.id)));
+    if (!faltam.length) return true;
+    if (!obsEmAndamento) {
+      faltam.forEach(c => obsTentadas.add(String(c.id)));
+      obsEmAndamento = carregarObservacoes(faltam)
+        .then(() => { obsEmAndamento = null; if (aoCarregar) aoCarregar(); })
+        .catch(err => { obsEmAndamento = null; faltam.forEach(c => obsTentadas.delete(String(c.id))); console.warn('Busca nas observações indisponível:', err.message); });
+    }
+    return false;
   }
 
   function activeNames(table) {
@@ -253,6 +325,7 @@
     RECRUIT_TABLES, MASTER_TABLES,
     reload, invalidar, reloadMasterLists, activeNames,
     insertRow, updateRow, deleteRow, upsertMaster,
+    carregarObservacoes, observacoesCarregadas, observacoesParaBusca,
     logAcao, listHistorico,
     listSolicitacoes, criarSolicitacao, decidirSolicitacao,
     toSnakeRow, toCamelRow

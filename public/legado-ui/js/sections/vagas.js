@@ -629,9 +629,13 @@
     </div>`;
   }
 
-  function abrirModalObsVaga(vagaId) {
+  async function abrirModalObsVaga(vagaId) {
     const vaga = (D().vagas || []).find(v => v.id === vagaId);
     if (!vaga) return;
+    // As observações dos candidatos não vêm na carga da lista: busca antes de mostrar.
+    const cands = candidatosDaVaga(vagaId);
+    try { await R.carregarObservacoes(cands); }
+    catch (err) { alert('Não foi possível carregar as observações dos candidatos: ' + err.message); return; }
     let corpo = `<div style="margin-bottom:20px">
       <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:10px">Observações e histórico da vaga</h4>`;
     let temAlgo = false;
@@ -653,7 +657,6 @@
     });
     if (!temAlgo) corpo += `<p style="color:var(--muted);font-size:13px;font-style:italic">Sem observações registradas no formulário da vaga.</p>`;
     corpo += `</div>`;
-    const cands = candidatosDaVaga(vagaId);
     corpo += `<div><h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:10px">Candidatos entrevistados (${cands.length})</h4>`;
     corpo += cands.length ? cands.map(candidatoResumoPipelineHTML).join('') : `<p style="color:var(--muted);font-size:13px;font-style:italic">Nenhum candidato cadastrado para esta vaga.</p>`;
     corpo += `</div>`;

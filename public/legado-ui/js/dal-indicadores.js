@@ -23,9 +23,12 @@
   window.HUB_DATA = window.HUB_DATA || {};
   for (const t of TABLES) window.HUB_DATA[t] = window.HUB_DATA[t] || [];
 
-  const PAGE = 1000;
+  // Páginas de 5000 (máximo de indicadores.lerPagina): menos idas e voltas.
+  const PAGE = 5000;
   const BATCH_SIZE = 500;
   const QUERY_TIMEOUT_MS = 30000;
+  // Tabelas lidas ao mesmo tempo no loadAll (as outras esperam a vez).
+  const SIMULTANEAS = 4;
 
   // fetch() do navegador não tem timeout embutido — se uma request travar
   // (rede instável, projeto Supabase gratuito "acordando" após ficar
@@ -139,21 +142,32 @@
     return data || [];
   }
 
+  // Tabelas em paralelo, no máximo SIMULTANEAS ao mesmo tempo. O progresso
+  // diz quantas já terminaram ("(concluídas + 1)/total: tabela que acabou de
+  // receber uma página") e os erros saem na ordem de TABLES, como antes.
   async function loadAll(onProgress) {
     window.HUB_DATA = window.HUB_DATA || {};
-    const errors = [];
-    for (let i = 0; i < TABLES.length; i++) {
-      const t = TABLES[i];
-      try {
-        window.HUB_DATA[t] = await fetchAll(t, rowsSoFar => {
-          if (onProgress) onProgress(t, i, TABLES.length, rowsSoFar);
-        });
-      } catch (err) {
-        errors.push(`${t}: ${err.message}`);
-        window.HUB_DATA[t] = window.HUB_DATA[t] || [];
+    const errors = new Array(TABLES.length);
+    let proximo = 0;
+    let concluidas = 0;
+    async function trabalhador() {
+      while (proximo < TABLES.length) {
+        const i = proximo++;
+        const t = TABLES[i];
+        try {
+          window.HUB_DATA[t] = await fetchAll(t, rowsSoFar => {
+            if (onProgress) onProgress(t, Math.min(concluidas, TABLES.length - 1), TABLES.length, rowsSoFar);
+          });
+        } catch (err) {
+          errors[i] = `${t}: ${err.message}`;
+          window.HUB_DATA[t] = window.HUB_DATA[t] || [];
+        }
+        concluidas++;
       }
     }
-    if (errors.length) throw new Error('Algumas tabelas não carregaram — ' + errors.join('; '));
+    await Promise.all(Array.from({ length: Math.min(SIMULTANEAS, TABLES.length) }, trabalhador));
+    const falhas = errors.filter(Boolean);
+    if (falhas.length) throw new Error('Algumas tabelas não carregaram — ' + falhas.join('; '));
     return window.HUB_DATA;
   }
 

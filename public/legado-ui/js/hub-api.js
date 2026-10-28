@@ -2,6 +2,22 @@
 // Cada acesso a dados é uma operação da lista fechada do servidor
 // (src/server/hub/registro.ts), chamada por POST /api/hub/<operação>.
 (function () {
+  // Lista de linhas chega em colunas ({__colunas, __linhas}, montada por
+  // src/server/hub/resposta.ts): remonta os objetos com as chaves na mesma
+  // ordem. As telas recebem exatamente o que recebiam antes. Outro formato passa intacto.
+  function deColunas(dados) {
+    if (!dados || typeof dados !== 'object' || Array.isArray(dados)) return dados;
+    const chaves = Object.keys(dados);
+    if (chaves.length !== 2 || !Array.isArray(dados.__colunas) || !Array.isArray(dados.__linhas)) return dados;
+    const colunas = dados.__colunas;
+    const n = colunas.length;
+    return dados.__linhas.map(function (linha) {
+      const o = {};
+      for (let j = 0; j < n; j++) o[colunas[j]] = linha[j];
+      return o;
+    });
+  }
+
   async function chamar(operacao, dados) {
     let resp;
     try {
@@ -21,7 +37,7 @@
       throw new Error((corpo && corpo.erro) || 'Sessão encerrada.');
     }
     if (!resp.ok) throw new Error((corpo && corpo.erro) || ('Erro ' + resp.status));
-    return corpo ? corpo.dados : null;
+    return corpo ? deColunas(corpo.dados) : null;
   }
 
   // Sair: o NextAuth exige o token CSRF dele no POST de saída.

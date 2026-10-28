@@ -103,9 +103,33 @@
     </div>`;
   }
 
-  function abrirPreencher(id) {
+  // Observações internas do candidato: não vêm na carga da lista
+  // (dal-recrutamento.js, carregarObservacoes). Abrir o parecer busca antes;
+  // se a tela for redesenhada depois de uma recarga (candidato alterado volta
+  // como objeto novo, sem elas), o parágrafo é preenchido quando chegarem.
+  async function preCarregarObs(p) {
+    const cand = candidatoDe(p);
+    if (cand) { try { await R.carregarObservacoes([cand]); } catch (err) { /* a tela tenta de novo ao desenhar */ } }
+  }
+  const SEM_OBS = '<span class="hint">Nenhuma observação registrada pelo time de R&amp;S.</span>';
+  function obsCandidatoHTML(cand) {
+    if (cand && !R.observacoesCarregadas(cand)) return '<span class="hint">Carregando observações...</span>';
+    return cand && cand.observacoes ? U.escapeHtml(cand.observacoes) : SEM_OBS;
+  }
+  function completarObsCandidato(el, cand) {
+    // O parágrafo desta tela (não o de uma tela desenhada depois, de outro candidato).
+    const alvo = el.querySelector('#pg-obs-cand');
+    if (!cand || !alvo || R.observacoesCarregadas(cand)) return;
+    const falhou = '<span class="hint">Não foi possível carregar as observações.</span>';
+    R.carregarObservacoes([cand])
+      .then(() => { if (alvo.isConnected) alvo.innerHTML = R.observacoesCarregadas(cand) ? obsCandidatoHTML(cand) : falhou; })
+      .catch(() => { if (alvo.isConnected) alvo.innerHTML = falhou; });
+  }
+
+  async function abrirPreencher(id) {
     const p = pareceres().find(x => x.id === id);
     if (!p) return;
+    await preCarregarObs(p);
     editingId = id;
     formDados = Object.assign({}, p.dados || {});
     const modelo = modeloDe(p);
@@ -120,9 +144,10 @@
     view = 'preencher';
     render();
   }
-  function abrirVer(id) {
+  async function abrirVer(id) {
     const p = pareceres().find(x => x.id === id);
     if (!p) return;
+    await preCarregarObs(p);
     editingId = id;
     formDados = Object.assign({}, p.dados || {});
     view = 'ver';
@@ -145,7 +170,7 @@
       <h2 style="margin-bottom:4px">Parecer do Gestor — ${U.escapeHtml(p.candidatoNome || '')}</h2>
       <p class="hint" style="margin-bottom:16px">Modelo: ${U.escapeHtml(modelo.nome)}</p>
       <details class="blk" open><summary>Observações do Candidato</summary><div class="blk-body">
-        <p style="white-space:pre-wrap;font-size:13px">${cand && cand.observacoes ? U.escapeHtml(cand.observacoes) : '<span class="hint">Nenhuma observação registrada pelo time de R&amp;S.</span>'}</p>
+        <p id="pg-obs-cand" style="white-space:pre-wrap;font-size:13px">${obsCandidatoHTML(cand)}</p>
       </div></details>
       <div id="pg-form">${PR.renderFormBody(modelo, formDados, '')}</div>
       <div id="pg-msg"></div>
@@ -154,6 +179,7 @@
     el.querySelector('#pg-voltar').addEventListener('click', voltarLista);
     el.querySelector('#pg-salvar').addEventListener('click', () => salvarParecer(el, p, modelo));
     PR.wirePreencherEvents(el, modelo, formDados);
+    completarObsCandidato(el, cand);
   }
 
   function renderVerView(el) {
@@ -166,11 +192,12 @@
       <h2 style="margin-bottom:4px">Parecer do Gestor — ${U.escapeHtml(p.candidatoNome || '')}</h2>
       <p class="hint" style="margin-bottom:16px">Modelo: ${U.escapeHtml(modelo.nome)} · Preenchido por ${U.escapeHtml(p.preenchidoPor || '—')} em ${p.dataFinalizacao ? U.fmtDateBR(p.dataFinalizacao) : '—'}</p>
       <details class="blk" open><summary>Observações do Candidato</summary><div class="blk-body">
-        <p style="white-space:pre-wrap;font-size:13px">${cand && cand.observacoes ? U.escapeHtml(cand.observacoes) : '<span class="hint">Nenhuma observação registrada pelo time de R&amp;S.</span>'}</p>
+        <p id="pg-obs-cand" style="white-space:pre-wrap;font-size:13px">${obsCandidatoHTML(cand)}</p>
       </div></details>
       <div>${PR.renderFormBody(modelo, formDados, 'disabled')}</div>
     `;
     el.querySelector('#pg-voltar').addEventListener('click', voltarLista);
+    completarObsCandidato(el, cand);
   }
 
   // ----------------------------------------------------------- Salvar

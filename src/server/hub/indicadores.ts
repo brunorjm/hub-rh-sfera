@@ -3,7 +3,7 @@ import { z } from "zod";
 import { linhasJson, operacao } from "@/server/hub/operacao";
 
 // Carga do módulo Indicadores (legado/js/dal-indicadores.js, fetchAll): tabela a
-// tabela, em páginas de até 1000 linhas por id crescente. A RLS recorta as
+// tabela, em páginas de até 5000 linhas por id crescente. A RLS recorta as
 // linhas; as colunas são escolhidas aqui, nunca pelo navegador.
 const TABELAS = [
   "colaboradores", "feedbacks", "one_on_one", "celebracoes",
@@ -62,7 +62,7 @@ const lerPagina = operacao({
   entrada: z.object({
     tabela: z.enum(TABELAS),
     aposId: z.number().int().min(0),
-    limite: z.number().int().min(1).max(1000).default(1000),
+    limite: z.number().int().min(1).max(5000).default(1000),
   }),
   async executar({ tabela, aposId, limite }, { tx }) {
     // Identificadores vêm das constantes acima (enum validado), nunca do pedido.

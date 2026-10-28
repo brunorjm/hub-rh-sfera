@@ -3,6 +3,7 @@ import { lerJson } from "@/lib/corpo";
 import { origemPermitida } from "@/lib/origem";
 import { usuarioAtual } from "@/lib/sessao";
 import { executarOperacao } from "@/server/hub/executar";
+import { codificarColunas, respostaJson } from "@/server/hub/resposta";
 
 export const dynamic = "force-dynamic";
 
@@ -25,5 +26,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ operaca
 
   const { operacao } = await params;
   const r = await executarOperacao(operacao, corpo.valor, usuario, usuario.verComo);
-  return "erro" in r ? erro(r.status, r.erro) : NextResponse.json({ dados: r.dados });
+  if ("erro" in r) return erro(r.status, r.erro);
+  // Lista de linhas em colunas e JSON comprimido (src/server/hub/resposta.ts);
+  // hub-api.js remonta os objetos, então as telas recebem o mesmo de antes.
+  return respostaJson(JSON.stringify({ dados: codificarColunas(r.dados) }), req.headers.get("accept-encoding"));
 }

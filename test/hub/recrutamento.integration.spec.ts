@@ -373,3 +373,91 @@ describe("token de link público e autoria vêm do servidor", () => {
     }
   });
 });
+
+describe("candidatos.observacoes sob demanda (spec de otimização, fase 1)", () => {
+  const obsDe = async (id: string) =>
+    (await prisma.$queryRawUnsafe<{ observacoes: string | null }[]>(`select observacoes from public.candidatos where id = $1`, id))[0]!.observacoes;
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(`update public.candidatos set observacoes = 'Obs inventada ' || id`);
+  });
+
+  it("lerPagina de candidatos não traz observacoes (nem no delta); as outras colunas continuam", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const todos = linhas(await executar("recrutamento.lerPagina", { tabela: "candidatos" }, admin));
+    expect(todos.map((c) => c.id)).toEqual(["CAND-1", "CAND-2"]);
+    for (const c of todos) {
+      expect(c).not.toHaveProperty("observacoes");
+      expect(c).toHaveProperty("nome");
+      expect(c).toHaveProperty("hub_alterado_em");
+    }
+    const delta = linhas(await executar("recrutamento.lerPagina", { tabela: "candidatos", desde: "2000-01-01T00:00:00Z" }, admin));
+    expect(delta).toHaveLength(2);
+    expect(delta[0]).not.toHaveProperty("observacoes");
+    // Vagas não mudam: observacoes da vaga continua descendo.
+    expect(linhas(await executar("recrutamento.lerPagina", { tabela: "vagas" }, admin))[0]).toHaveProperty("observacoes");
+  });
+
+  it("aceita páginas de até 5000 linhas", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    expect((await executar("recrutamento.lerPagina", { tabela: "candidatos", limite: 5000 }, admin)).status).toBe(200);
+    expect((await executar("recrutamento.lerPagina", { tabela: "candidatos", limite: 5001 }, admin)).status).toBe(400);
+  });
+
+  it("observacoes devolve {id, observacoes} dos ids pedidos", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const r = await executar("recrutamento.observacoes", { ids: ["CAND-2", "CAND-1", "CAND-1", "NAO-EXISTE"] }, admin);
+    expect(r.status).toBe(200);
+    expect(linhas(r)).toEqual([
+      { id: "CAND-1", observacoes: "Obs inventada CAND-1" },
+      { id: "CAND-2", observacoes: "Obs inventada CAND-2" },
+    ]);
+  });
+
+  it("gestor fora do recorte não recebe a observação (RLS)", async () => {
+    const gestor = await criarConta({ perfil: "gestor", permissoes: { "recrutamento.candidatos": true }, unidades: ["Loja Centro"] });
+    const r = await executar("recrutamento.observacoes", { ids: ["CAND-1", "CAND-2"] }, gestor);
+    expect(r.status).toBe(200);
+    expect(linhas(r)).toEqual([{ id: "CAND-1", observacoes: "Obs inventada CAND-1" }]);
+    // Sem a permissão de candidatos (só vagas): a RLS esconde tudo, como na lerPagina.
+    const soVagas = await criarConta({ perfil: "gestor", permissoes: { "recrutamento.vagas": true } });
+    const lidas = linhas(await executar("recrutamento.lerPagina", { tabela: "candidatos" }, soVagas)).map((c) => c.id);
+    const obs = linhas(await executar("recrutamento.observacoes", { ids: ["CAND-1", "CAND-2"] }, soVagas)).map((c) => c.id);
+    expect(obs).toEqual(lidas);
+  });
+
+  it("valida a entrada e a permissão", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    expect((await executar("recrutamento.observacoes", { ids: [] }, admin)).status).toBe(400);
+    expect((await executar("recrutamento.observacoes", { ids: Array.from({ length: 1001 }, (_, i) => `C-${i}`) }, admin)).status).toBe(400);
+    expect((await executar("recrutamento.observacoes", { ids: [1] }, admin)).status).toBe(400);
+    expect((await executar("recrutamento.observacoes", { ids: ["CAND-1"], extra: true }, admin)).status).toBe(400);
+    const nada = await criarConta({ perfil: "gestor", permissoes: { "indicadores.headcount": true } });
+    expect((await executar("recrutamento.observacoes", { ids: ["CAND-1"] }, nada)).status).toBe(403);
+  });
+
+  it("Visualizar como lê com o recorte da pessoa vista", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const gestor = await criarConta({ perfil: "gestor", permissoes: { "recrutamento.candidatos": true }, unidades: ["Loja Norte"] });
+    const r = await executar("recrutamento.observacoes", { ids: ["CAND-1", "CAND-2"] }, admin, gestor);
+    expect(linhas(r).map((c) => c.id)).toEqual(["CAND-2"]);
+  });
+
+  it("editar outro campo SEM mandar observacoes mantém as observações; mandar explicitamente grava", async () => {
+    const rh = await criarConta({ perfil: "rh", permissoes: { "recrutamento.candidatos": true } });
+    const semObs = await executar("recrutamento.atualizar", { tabela: "candidatos", id: "CAND-1", linha: { nome: "Candidata Um Editada" } }, rh);
+    expect(semObs.status).toBe(200);
+    expect(await obsDe("CAND-1")).toBe("Obs inventada CAND-1");
+    // A linha devolvida pelo atualizar traz a observação do banco (returning *).
+    expect(dados(semObs)).toMatchObject({ nome: "Candidata Um Editada", observacoes: "Obs inventada CAND-1" });
+
+    const comObs = await executar("recrutamento.atualizar", { tabela: "candidatos", id: "CAND-1", linha: { observacoes: "Nova obs inventada" } }, rh);
+    expect(comObs.status).toBe(200);
+    expect(await obsDe("CAND-1")).toBe("Nova obs inventada");
+
+    // null explícito também é gravado (é escolha do pedido, não ausência).
+    expect((await executar("recrutamento.atualizar", { tabela: "candidatos", id: "CAND-1", linha: { observacoes: null } }, rh)).status).toBe(200);
+    expect(await obsDe("CAND-1")).toBeNull();
+    expect(await obsDe("CAND-2")).toBe("Obs inventada CAND-2");
+  });
+});

@@ -85,6 +85,13 @@ const COLUNAS: Record<Operacional, readonly string[]> = {
   ).split(","),
 };
 
+// Colunas que a leitura em lote (lerPagina) devolve: as de COLUNAS, menos as
+// que descem sob demanda. candidatos.observacoes é texto livre longo (cerca
+// de 19 MB no total) e só aparece no detalhe, na edição e na exportação, que
+// a buscam pela operação recrutamento.observacoes.
+const SOB_DEMANDA: Partial<Record<Operacional, readonly string[]>> = { candidatos: ["observacoes"] };
+const colunasLeitura = (t: Operacional) => COLUNAS[t].filter((c) => !(SOB_DEMANDA[t] ?? []).includes(c));
+
 // Tipo do id de cada tabela (paginação por id e busca por id).
 const TIPO_ID: Record<Operacional, "text" | "uuid" | "bigint"> = {
   vagas: "text", candidatos: "text", entrevistas: "uuid", onboarding: "uuid", visitas_loja: "text",
@@ -232,20 +239,20 @@ const versoes = operacao({
 
 // Uma página de uma tabela, por id crescente (antes: range de 1000 do PostgREST).
 // soIds: só a coluna id (para tirar as apagadas). desde: só as linhas alteradas
-// depois do instante (vagas e candidatos).
+// depois do instante (vagas e candidatos). Sem as colunas de SOB_DEMANDA.
 const lerPagina = operacao({
   permissao: LEITURA,
   escrita: false,
   entrada: z.object({
     tabela: tabelaOperacional,
     aposId: idLinha.nullable().default(null),
-    limite: z.number().int().min(1).max(1000).default(1000),
+    limite: z.number().int().min(1).max(5000).default(1000),
     soIds: z.boolean().default(false),
     desde: z.string().datetime({ offset: true }).optional(),
   }).strict(),
   async executar({ tabela, aposId, limite, soIds, desde }, { tx }) {
     if (desde && !COM_DELTA.has(tabela)) throw new ErroOperacao(400, `${tabela} não tem controle de alteração.`);
-    const colunas = soIds ? "id" : COLUNAS[tabela].map(ident).join(", ");
+    const colunas = soIds ? "id" : colunasLeitura(tabela).map(ident).join(", ");
     const filtros = [`($1::text is null or id > $1::text::${TIPO_ID[tabela]})`];
     const params: unknown[] = [aposId == null ? null : String(aposId), limite];
     if (desde) {
@@ -256,6 +263,23 @@ const lerPagina = operacao({
       tx,
       `select ${colunas} from public.${ident(tabela)} where ${filtros.join(" and ")} order by id asc limit $2`,
       ...params,
+    );
+  },
+});
+
+// Observações internas dos candidatos pedidos (fora da lerPagina). Mesma
+// permissão de leitura e mesma RLS de candidatos: id fora do recorte não volta.
+const observacoes = operacao({
+  permissao: LEITURA,
+  escrita: false,
+  entrada: z.object({
+    ids: z.array(z.string().min(1).max(200)).min(1).max(1000),
+  }).strict(),
+  async executar({ ids }, { tx }) {
+    return linhasJson(
+      tx,
+      `select id, observacoes from public.candidatos where id = any($1::text[]) order by id asc`,
+      [...new Set(ids)],
     );
   },
 });
@@ -467,6 +491,7 @@ const decidirSolicitacao = operacao({
 export const operacoes: Record<string, Operacao> = {
   "recrutamento.versoes": versoes,
   "recrutamento.lerPagina": lerPagina,
+  "recrutamento.observacoes": observacoes,
   "recrutamento.resumo": resumo,
   "recrutamento.listarCadastro": listarCadastro,
   "recrutamento.inserir": inserir,

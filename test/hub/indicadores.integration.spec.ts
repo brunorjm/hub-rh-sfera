@@ -80,6 +80,12 @@ describe("indicadores.lerPagina", () => {
     expect(p2.map((l) => l.nome)).toEqual(["Caio"]);
   });
 
+  it("aceita páginas de até 5000 linhas", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    expect((await executar("indicadores.lerPagina", { tabela: "colaboradores", aposId: 0, limite: 5000 }, admin)).status).toBe(200);
+    expect((await executar("indicadores.lerPagina", { tabela: "colaboradores", aposId: 0, limite: 5001 }, admin)).status).toBe(400);
+  });
+
   it("tabela fora da lista é recusada antes do banco", async () => {
     const admin = await criarConta({ perfil: "admin" });
     const r = await executar("indicadores.lerPagina", { tabela: "profiles", aposId: 0 }, admin);
