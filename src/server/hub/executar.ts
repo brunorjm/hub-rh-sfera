@@ -42,6 +42,13 @@ export async function executarOperacao(
     return { status: 200, dados: resultado ?? null };
   } catch (e) {
     if (e instanceof ErroOperacao) return { status: e.status, erro: e.message };
+    // Dado inválido ou regra do banco (campo obrigatório, duplicado, data
+    // inválida): a tela antiga mostrava a mensagem do Postgres, como o
+    // Supabase devolvia. Classes 22 (dado) e 23 (integridade).
+    const banco = (e as { meta?: { code?: string; message?: string } })?.meta;
+    if (banco?.code && /^2[23]/.test(banco.code)) {
+      return { status: banco.code.startsWith("23") ? 409 : 400, erro: banco.message ?? "Dado inválido." };
+    }
     const msg = String((e as Error)?.message ?? e);
     // RLS/grant barrou ou escrita em transação só leitura: mesma situação do Supabase.
     if (/row-level security|permission denied|read-only transaction/i.test(msg)) {

@@ -67,23 +67,21 @@
   const PAGE = 1000;
   // Paginação com ordem fixa (por id): sem "order", o banco não garante a
   // mesma ordem entre uma página e outra e podia repetir ou pular linhas.
-  // `filtro` (opcional) recebe a consulta e devolve ela com o filtro aplicado.
-  async function fetchAll(table, colunas, filtro) {
+  // `desde` (opcional): só as linhas alteradas depois desse instante (vagas e candidatos).
+  // Páginas por id crescente pela operação recrutamento.lerPagina (servidor do Hub).
+  async function fetchAll(table, colunas, desde) {
     let all = [];
-    let from = 0;
+    let aposId = null;
     for (;;) {
-      let q = sb.from(table).select(colunas || '*');
-      if (filtro) q = filtro(q);
-      const { data, error } = await withTimeout(
-        q.order('id', { ascending: true }).range(from, from + PAGE - 1),
+      const data = await withTimeout(
+        HUB_API.chamar('recrutamento.lerPagina', { tabela: table, aposId, limite: PAGE, soIds: colunas === 'id', desde: desde || undefined }),
         QUERY_TIMEOUT_MS,
-        `tempo esgotado buscando "${table}" (conexão lenta ou projeto Supabase inativo)`
+        `tempo esgotado buscando "${table}" (conexão lenta ou servidor do Hub indisponível)`
       );
-      if (error) throw error;
       if (!data.length) break;
       all = all.concat(data);
       if (data.length < PAGE) break;
-      from += PAGE;
+      aposId = data[data.length - 1].id;
     }
     return all.map(toCamelRow);
   }
@@ -106,8 +104,7 @@
 
   async function lerVersoes() {
     try {
-      const { data, error } = await withTimeout(sb.from('hub_versoes').select('tabela, versao, alterado_em'), QUERY_TIMEOUT_MS, 'tempo esgotado lendo as versões');
-      if (error) return null;
+      const data = await withTimeout(HUB_API.chamar('recrutamento.versoes'), QUERY_TIMEOUT_MS, 'tempo esgotado lendo as versões');
       const m = {};
       for (const r of data || []) m[r.tabela] = r;
       return m;
@@ -122,7 +119,7 @@
     if (!completa && c && v && c.desde && TABELAS_DELTA.has(t)) {
       const desde = new Date(new Date(c.desde).getTime() - MARGEM_DELTA_MS).toISOString();
       const [novas, ids] = await Promise.all([
-        fetchAll(t, '*', q => q.gt('hub_alterado_em', desde)),
+        fetchAll(t, '*', desde),
         fetchAll(t, 'id')
       ]);
       const vivos = new Set(ids.map(r => r.id));
@@ -172,23 +169,16 @@
     let resumosOk = true;
     // Resumos da Entrevista de Desligamento para os Indicadores — sem dado
     // pessoal (supabase-links-privacidade.sql): desligamentos do Controle e
-    // links de entrevista. Paginado: o PostgREST corta respostas em 1000
-    // linhas sem avisar, inclusive em funções. null = resumo indisponível
+    // links de entrevista. O servidor do Hub devolve o resumo inteiro numa
+    // chamada (não há o corte de 1000 linhas do PostgREST). null = resumo indisponível
     // (função não criada / erro) → os Indicadores usam a fonte antiga;
     // [] = a pessoa não tem linhas no seu recorte.
     // + quais fichas do Controle têm resposta do Forms (sem as respostas;
     // supabase-controle-respostas-forms.sql — vazio sem a permissão do Controle).
     for (const [fn, destino] of [['controle_desligamento_indicadores', 'controle_desligamento_ind'], ['entrevistas_desligamento_indicadores', 'entrevistas_desligamento_ind'], ['controle_desligamento_respostas_forms_resumo', 'controle_respostas_forms']]) {
       try {
-        let all = [], from = 0;
-        for (;;) {
-          const { data, error } = await withTimeout(sb.rpc(fn).range(from, from + PAGE - 1), QUERY_TIMEOUT_MS, 'tempo esgotado buscando o resumo ' + fn);
-          if (error) throw error;
-          all = all.concat(data || []);
-          if (!data || data.length < PAGE) break;
-          from += PAGE;
-        }
-        RESUMOS[destino] = all.map(toCamelRow);
+        const all = await withTimeout(HUB_API.chamar('recrutamento.resumo', { funcao: fn }), QUERY_TIMEOUT_MS, 'tempo esgotado buscando o resumo ' + fn);
+        RESUMOS[destino] = (all || []).map(toCamelRow);
       } catch (err) {
         RESUMOS[destino] = null;
         if (!/does not exist|schema cache|could not find/i.test(err.message || '')) { errors.push(fn + ': ' + err.message); resumosOk = false; }
@@ -205,8 +195,7 @@
   // Administração → Cadastros do Recrutamento.
   async function reloadMasterLists() {
     for (const t of MASTER_TABLES) {
-      const { data, error } = await sb.from(t).select('*').order('nome');
-      if (error) throw error;
+      const data = await HUB_API.chamar('recrutamento.listarCadastro', { tabela: t });
       window.HUB_RECRUIT_DATA[t] = (data || []).map(toCamelRow);
     }
     return window.HUB_RECRUIT_DATA;
@@ -217,63 +206,47 @@
   }
 
   async function insertRow(table, rowCamel) {
-    const { data, error } = await sb.from(table).insert(toSnakeRow(rowCamel)).select().single();
-    if (error) throw error;
+    const data = await HUB_API.chamar('recrutamento.inserir', { tabela: table, linha: toSnakeRow(rowCamel) });
     return toCamelRow(data);
   }
 
   async function updateRow(table, id, rowCamel) {
-    const { data, error } = await sb.from(table).update(toSnakeRow(rowCamel)).eq('id', id).select().single();
-    if (error) throw error;
+    const data = await HUB_API.chamar('recrutamento.atualizar', { tabela: table, id, linha: toSnakeRow(rowCamel) });
     return toCamelRow(data);
   }
 
   async function deleteRow(table, id) {
-    const { error } = await sb.from(table).delete().eq('id', id);
-    if (error) throw error;
+    await HUB_API.chamar('recrutamento.excluir', { tabela: table, id });
   }
 
   async function upsertMaster(table, rowCamel) {
-    const { error } = await sb.from(table).upsert(toSnakeRow(rowCamel));
-    if (error) throw error;
+    await HUB_API.chamar('recrutamento.salvarCadastro', { tabela: table, linha: toSnakeRow(rowCamel) });
   }
 
   // Log de auditoria (tela Histórico) — chamado pelas telas operacionais a
-  // cada ação relevante sobre uma vaga.
+  // cada ação relevante sobre uma vaga. O autor (usuario) é preenchido pelo servidor.
   async function logAcao(entry) {
-    const { error } = await sb.from('historico').insert(toSnakeRow(Object.assign({ usuario: (HUB_USER && (HUB_USER.nome || HUB_USER.email)) || 'Desconhecido' }, entry)));
-    if (error) throw error;
+    await HUB_API.chamar('recrutamento.registrarAcao', toSnakeRow(entry));
   }
 
   async function listHistorico() {
-    const { data, error } = await sb.from('historico').select('*').order('timestamp', { ascending: false }).limit(1000);
-    if (error) throw error;
+    const data = await HUB_API.chamar('recrutamento.listarHistorico');
     return (data || []).map(toCamelRow);
   }
 
   async function listSolicitacoes() {
-    const { data, error } = await sb.from('solicitacoes').select('*').order('data_solicitacao', { ascending: false });
-    if (error) throw error;
+    const data = await HUB_API.chamar('recrutamento.listarSolicitacoes');
     return (data || []).map(toCamelRow);
   }
 
+  // Solicitante, perfil e status 'Pendente' são preenchidos pelo servidor.
   async function criarSolicitacao(entry) {
-    const { error } = await sb.from('solicitacoes').insert(toSnakeRow(Object.assign({
-      solicitante: (HUB_USER && (HUB_USER.nome || HUB_USER.email)) || 'Desconhecido',
-      perfilSolicitante: HUB_USER && HUB_USER.perfil,
-      status: 'Pendente'
-    }, entry)));
-    if (error) throw error;
+    await HUB_API.chamar('recrutamento.criarSolicitacao', toSnakeRow(entry));
   }
 
+  // Quem aprovou e a data da decisão são preenchidos pelo servidor.
   async function decidirSolicitacao(id, status, observacao) {
-    const { error } = await sb.from('solicitacoes').update(toSnakeRow({
-      status,
-      aprovadoPor: (HUB_USER && (HUB_USER.nome || HUB_USER.email)) || 'Desconhecido',
-      dataDecisao: new Date().toISOString(),
-      observacaoAdmin: observacao || null
-    })).eq('id', id);
-    if (error) throw error;
+    await HUB_API.chamar('recrutamento.decidirSolicitacao', { id, status, observacao: observacao || null });
   }
 
   window.HUB_RECRUIT = {
