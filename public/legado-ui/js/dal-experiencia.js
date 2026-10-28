@@ -8,11 +8,8 @@
 // por vez, quando a pessoa abre o detalhe dele.
 (function () {
   const TABELAS = { 45: 'avaliacao_experiencia_45', 90: 'avaliacao_experiencia_90' };
-  const COLUNAS_LEVES = [
-    'id', 'ciclo', 'pessoa_key', 'cpf', 'nome', 'cargo', 'papel', 'unidade', 'departamento',
-    'gestor', 'gestor_direto', 'gestor_avaliador', 'data_admissao', 'data_avaliacao', 'data_autoavaliacao',
-    'status_gestor', 'status_auto', 'martelo', 'martelo_comentario', 'notas_gestor', 'notas_auto'
-  ].join(',');
+  // As colunas (COLUNAS_LEVES: sem matricula e sem os comentários) são
+  // escolhidas pelo servidor do Hub (src/server/hub/experiencia.ts).
   const PAGE = 1000;
   const QUERY_TIMEOUT_MS = 30000;
 
@@ -26,21 +23,21 @@
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }
 
+  // Páginas por id crescente pela operação experiencia.lerPagina.
   async function buscarCiclo(ciclo) {
     const tabela = TABELAS[ciclo];
     let all = [];
-    let from = 0;
+    let aposId = 0;
     for (;;) {
-      const { data, error } = await withTimeout(
-        sb.from(tabela).select(COLUNAS_LEVES).order('id', { ascending: true }).range(from, from + PAGE - 1),
+      const data = await withTimeout(
+        HUB_API.chamar('experiencia.lerPagina', { ciclo: Number(ciclo), aposId, limite: PAGE }),
         QUERY_TIMEOUT_MS,
-        `tempo esgotado buscando "${tabela}" (conexão lenta ou projeto Supabase inativo)`
+        `tempo esgotado buscando "${tabela}" (conexão lenta ou servidor do Hub indisponível)`
       );
-      if (error) throw error;
       if (!data.length) break;
       all = all.concat(data);
       if (data.length < PAGE) break;
-      from += PAGE;
+      aposId = data[data.length - 1].id;
     }
     return all;
   }
@@ -58,11 +55,10 @@
   }
 
   async function buscarComentarios(ciclo, id) {
-    const { data, error } = await withTimeout(
-      sb.from(TABELAS[ciclo]).select('comentarios_gestor,comentarios_auto').eq('id', id).maybeSingle(),
+    const data = await withTimeout(
+      HUB_API.chamar('experiencia.comentarios', { ciclo: Number(ciclo), id }),
       QUERY_TIMEOUT_MS, 'tempo esgotado buscando os comentários'
     );
-    if (error) throw error;
     return data || { comentarios_gestor: {}, comentarios_auto: {} };
   }
 

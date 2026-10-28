@@ -27,12 +27,11 @@
     let all = [];
     let lastId = 0;
     for (;;) {
-      const { data, error } = await withTimeout(
-        sb.from(table).select('*').gt('id', lastId).order('id', { ascending: true }).limit(PAGE),
+      const data = await withTimeout(
+        HUB_API.chamar('pesquisas.boletimLerPagina', { tabela: table, aposId: lastId, limite: PAGE }),
         QUERY_TIMEOUT_MS,
-        `tempo esgotado buscando "${table}" (conexão lenta ou projeto Supabase inativo)`
+        `tempo esgotado buscando "${table}" (conexão lenta ou servidor do Hub indisponível)`
       );
-      if (error) throw error;
       if (!data.length) break;
       all = all.concat(data);
       lastId = data[data.length - 1].id;
@@ -67,19 +66,18 @@
 
   function invalidar() { carregado = false; }
 
+  // Gravação pelo servidor do Hub (operação pesquisas.*), que chama a função do banco.
   async function rpc(nome, args) {
-    const { data, error } = await sb.rpc(nome, args);
-    if (error) throw new Error('Erro ao gravar no Supabase: ' + error.message);
-    return data;
+    try { return await HUB_API.chamar(nome, args); }
+    catch (error) { throw new Error('Erro ao gravar: ' + error.message); }
   }
 
   // Grava em lotes: o primeiro limpa o período, os demais só inserem.
   async function emLotes(nome, base, linhas, onProgress) {
-    await sb.auth.refreshSession().catch(() => {});
     let total = 0;
     for (let i = 0; i < Math.max(linhas.length, 1); i += LOTE) {
       const lote = linhas.slice(i, i + LOTE);
-      total += await rpc(nome, Object.assign({}, base, { p_linhas: lote, p_limpar: i === 0 })) || 0;
+      total += await rpc(nome, Object.assign({}, base, { linhas: lote, limpar: i === 0 })) || 0;
       if (onProgress) onProgress(Math.min(i + LOTE, linhas.length), linhas.length);
     }
     invalidar();
@@ -87,25 +85,25 @@
   }
 
   const unicos = arr => Array.from(new Set(arr));
-  function salvarHumor(linhas, onProgress) { return emLotes('boletim_salvar_humor', { p_meses: unicos(linhas.map(l => l.mes)) }, linhas, onProgress); }
-  function salvarEngNotas(inicio, fim, linhas, onProgress) { return emLotes('boletim_salvar_eng_notas', { p_inicio: inicio, p_fim: fim }, linhas, onProgress); }
-  function salvarSatisfacao(linhas, onProgress) { return emLotes('boletim_salvar_satisfacao', { p_meses: unicos(linhas.map(l => l.pesquisa)) }, linhas, onProgress); }
+  function salvarHumor(linhas, onProgress) { return emLotes('pesquisas.boletimSalvarHumor', { meses: unicos(linhas.map(l => l.mes)) }, linhas, onProgress); }
+  function salvarEngNotas(inicio, fim, linhas, onProgress) { return emLotes('pesquisas.boletimSalvarEngNotas', { inicio, fim }, linhas, onProgress); }
+  function salvarSatisfacao(linhas, onProgress) { return emLotes('pesquisas.boletimSalvarSatisfacao', { meses: unicos(linhas.map(l => l.pesquisa)) }, linhas, onProgress); }
 
-  const usuario = () => { const u = window.HUB_USER || {}; return u.nome || u.email || null; };
+  // Quem gravou/fechou (atualizado_por, fechado_por) vem da sessão, no servidor.
 
   async function salvarEntrada(mes, operacao, loja, indicador, valor) {
-    await rpc('boletim_salvar_entrada', { p_mes: mes + '-01', p_operacao: operacao, p_loja: loja || null, p_indicador: indicador, p_valor: valor, p_usuario: usuario() });
+    await rpc('pesquisas.boletimSalvarEntrada', { mes: mes + '-01', operacao, loja: loja || null, indicador, valor });
     invalidar();
   }
 
   async function fechar(mes, itens) {
-    const n = await rpc('boletim_fechar', { p_mes: mes + '-01', p_itens: itens, p_usuario: usuario() });
+    const n = await rpc('pesquisas.boletimFechar', { mes: mes + '-01', itens });
     invalidar();
     return n;
   }
 
   async function reabrir(mes) {
-    await rpc('boletim_reabrir', { p_mes: mes + '-01' });
+    await rpc('pesquisas.boletimReabrir', { mes: mes + '-01' });
     invalidar();
   }
 

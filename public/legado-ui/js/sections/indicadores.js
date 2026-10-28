@@ -229,7 +229,7 @@
   // recorte (boletim_resumo_publicado, supabase-boletim-resumo.sql). Sem a
   // função no banco ou sem mês fechado, o bloco simplesmente não aparece.
   // Guardado por conta: no "Visualizar como" o banco devolve o resumo da conta
-  // simulada (p_profile_id — só vale para quem tem admin.usuarios).
+  // simulada (o servidor roda a operação como ela).
   const BOLETIM_PUBLICADO = { linhas: null, conta: null };
   function blocoBoletimPublicado() {
     if (!window.HUB_BOLETIM_UI) return '';
@@ -241,8 +241,9 @@
       delete DASH_CARGA.falhou.boletimPublicado;
     }
     const st = dashCarga('boletimPublicado', () => BOLETIM_PUBLICADO.linhas !== null, async () => {
-      const args = simulando && HUB_USER && HUB_USER.id ? { p_profile_id: HUB_USER.id } : {};
-      const { data, error } = await sb.rpc('boletim_resumo_publicado', args);
+      // No "Visualizar como" o servidor já roda como a conta simulada.
+      let data = null, error = null;
+      try { data = await HUB_API.chamar('pesquisas.boletimResumoPublicado'); } catch (e) { error = e; }
       if (BOLETIM_PUBLICADO.conta !== conta) return; // trocou de conta no meio da busca
       if (error) { console.warn('Resumo do Boletim (publicado):', error.message); BOLETIM_PUBLICADO.linhas = []; return; }
       BOLETIM_PUBLICADO.linhas = data || [];

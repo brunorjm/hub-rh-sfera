@@ -25,12 +25,11 @@
     let all = [];
     let lastId = 0;
     for (;;) {
-      const { data, error } = await withTimeout(
-        sb.from(table).select('*').gt('id', lastId).order('id', { ascending: true }).limit(PAGE),
+      const data = await withTimeout(
+        HUB_API.chamar('pesquisas.climaLerPagina', { tabela: table, aposId: lastId, limite: PAGE }),
         QUERY_TIMEOUT_MS,
-        `tempo esgotado buscando "${table}" (conexão lenta ou projeto Supabase inativo)`
+        `tempo esgotado buscando "${table}" (conexão lenta ou servidor do Hub indisponível)`
       );
-      if (error) throw error;
       if (!data.length) break;
       all = all.concat(data);
       lastId = data[data.length - 1].id;

@@ -1,7 +1,7 @@
 // Cria (ou recria) uma conta de TESTE no banco LOCAL, para experimentar o login
 // sem usar a senha de ninguém. Recusa qualquer banco que não seja localhost.
 //
-// Uso: npx tsx scripts/criar-conta-teste.ts [--sem-troca]
+// Uso: npx tsx scripts/criar-conta-teste.ts [--sem-troca] [--admin]
 // Lê DEV_EMAIL_TESTE e DEV_SENHA_TESTE do .env (gere a senha; nunca use uma real).
 import "dotenv/config";
 import bcrypt from "bcryptjs";
@@ -17,6 +17,7 @@ const senha = process.env.DEV_SENHA_TESTE;
 if (!senha || senha.length < 12) throw new Error("Defina DEV_SENHA_TESTE (12+ caracteres) no .env.");
 
 const ID = "00000000-0000-4000-8000-00000000c0de";
+const PERFIL = process.argv.includes("--admin") ? "admin" : "rh";
 const prisma = new PrismaClient();
 
 async function main() {
@@ -27,10 +28,10 @@ async function main() {
       data: { id: ID, email, senha_hash: await bcrypt.hash(senha!, 10), trocar_senha: !process.argv.includes("--sem-troca") },
     }),
     prisma.profiles.create({
-      data: { id: ID, email, nome: "Conta de Teste Local", perfil: "rh", status: "ativo", permissoes: presetPermissoes("rh") },
+      data: { id: ID, email, nome: "Conta de Teste Local", perfil: PERFIL, status: "ativo", permissoes: presetPermissoes(PERFIL) },
     }),
   ]);
-  console.info(`Conta de teste pronta: ${email} (perfil RH, troca de senha obrigatória no primeiro acesso).`);
+  console.info(`Conta de teste pronta: ${email} (perfil ${PERFIL}).`);
 }
 
 main().finally(() => prisma.$disconnect());

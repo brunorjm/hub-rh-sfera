@@ -49,6 +49,9 @@ export async function executarOperacao(
     if (banco?.code && /^2[23]/.test(banco.code)) {
       return { status: banco.code.startsWith("23") ? 409 : 400, erro: banco.message ?? "Dado inválido." };
     }
+    // raise exception das funções do banco ("Este mês está fechado", "Período
+    // inválido"...): são mensagens escritas para a tela, como no Supabase.
+    if (banco?.code === "P0001") return { status: 400, erro: banco.message ?? "Operação recusada." };
     const msg = String((e as Error)?.message ?? e);
     // RLS/grant barrou ou escrita em transação só leitura: mesma situação do Supabase.
     if (/row-level security|permission denied|read-only transaction/i.test(msg)) {

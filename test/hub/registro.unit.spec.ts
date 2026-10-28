@@ -5,6 +5,9 @@ import { TODAS_AS_CHAVES } from "@/lib/rbac/catalogo";
 // Entrar nesta lista é decisão consciente: diga no comentário por quê.
 const SO_AUTENTICADO = new Set([
   "indicadores.lerPagina", // carga dos Indicadores; cada tabela é recortada pela RLS original
+  // Dashboard (sempre visível) de quem não tem o Boletim: boletim_resumo_publicado()
+  // é concedida a authenticated e recorta por dentro (profile ativo + can_see_perfil).
+  "pesquisas.boletimResumoPublicado",
 ]);
 
 describe("registro de operações do hub", () => {

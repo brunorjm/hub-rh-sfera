@@ -100,11 +100,13 @@
     if (vagasPromise) return vagasPromise;
     vagasPromise = (async () => {
       const all = [];
-      for (let de = 0; ; de += 1000) {
-        const { data, error } = await window.sb.from('vagas').select('id,data_abertura,unidade,departamento,cargo,status,tipo_movimentacao').order('id', { ascending: true }).range(de, de + 999);
-        if (error) throw error;
+      // Colunas id,data_abertura,unidade,departamento,cargo,status,tipo_movimentacao
+      // (escolhidas no servidor), por id crescente.
+      for (let aposId = null; ;) {
+        const data = await HUB_API.chamar('experiencia.vagasReposicao', { aposId, limite: 1000 });
         all.push(...data);
         if (data.length < 1000) break;
+        aposId = data[data.length - 1].id;
       }
       vagasCache = all.map(r => ({ id: r.id, abertura: r.data_abertura ? String(r.data_abertura).slice(0, 10) : null, loja: r.departamento, cargo: r.cargo, status: r.status, tipo: r.tipo_movimentacao }));
       return vagasCache;

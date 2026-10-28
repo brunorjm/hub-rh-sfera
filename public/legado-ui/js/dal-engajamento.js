@@ -28,12 +28,11 @@
     let all = [];
     let lastId = 0;
     for (;;) {
-      const { data, error } = await withTimeout(
-        sb.from(table).select('*').gt('id', lastId).order('id', { ascending: true }).limit(PAGE),
+      const data = await withTimeout(
+        HUB_API.chamar('pesquisas.engajamentoLerPagina', { tabela: table, aposId: lastId, limite: PAGE }),
         QUERY_TIMEOUT_MS,
-        `tempo esgotado buscando "${table}" (conexão lenta ou projeto Supabase inativo)`
+        `tempo esgotado buscando "${table}" (conexão lenta ou servidor do Hub indisponível)`
       );
-      if (error) throw error;
       if (!data.length) break;
       all = all.concat(data);
       lastId = data[data.length - 1].id;
@@ -57,17 +56,16 @@
   // Descarta o cache: a próxima abertura da tela busca de novo no Supabase.
   function invalidar() { carregado = false; }
 
+  // Gravação pelo servidor do Hub (operação pesquisas.*), que chama a função do banco.
   async function rpc(nome, args) {
-    await sb.auth.refreshSession().catch(() => {});
-    const { data, error } = await sb.rpc(nome, args);
-    if (error) throw new Error('Erro ao gravar no Supabase: ' + error.message);
-    return data;
+    try { return await HUB_API.chamar(nome, args); }
+    catch (error) { throw new Error('Erro ao gravar: ' + error.message); }
   }
 
   // Tudo-ou-nada: todos os pulsos + linhas gravados numa transação no banco.
   // "hoje" (data local, AAAA-MM-DD) decide quais pulsos já encerraram — a base de
   // convidados deles fica congelada nos próximos uploads.
-  function salvarBase(pulsos, linhas, hoje) { return rpc('engajamento_salvar_base', { p_pulsos: pulsos, p_linhas: linhas, p_hoje: hoje }); }
+  function salvarBase(pulsos, linhas, hoje) { return rpc('pesquisas.engajamentoSalvarBase', { pulsos, linhas, hoje }); }
 
   window.HUB_ENGAJAMENTO = { carregar, invalidar, jaCarregado: () => carregado, salvarBase };
 })();
