@@ -1,4 +1,5 @@
-# Hub Sfera — HOMOLOGAÇÃO na VPS (mesmo modelo do Portal do Fera).
+# Hub Sfera na VPS — homologação E produção (mesmo modelo do Portal do Fera).
+# Os dois ambientes usam este arquivo; mudam as variáveis e o banco.
 #
 # O banco NÃO sobe aqui: DATABASE_URL aponta para o Postgres da VPS, num banco
 # próprio do hub (ex.: hub_rh_homolog), nunca no do Portal. Antes da primeira

@@ -1,3 +1,8 @@
+> **Atenção (28/10/2026):** este guia descreve o hub ANTIGO (estático + Supabase), que está
+> em `legado/`. Na branch `feat/stack-propria` o hub roda em Next.js + Postgres próprio:
+> leia `README.md` e `docs/specs/2026-10-27-stack-propria.md`. Este AGENTS.md será
+> reescrito na virada.
+
 # Hub Sfera (hub-rh-sfera) — AGENTS.md
 
 ## Visão geral
