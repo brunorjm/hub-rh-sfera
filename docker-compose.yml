@@ -1,0 +1,114 @@
+# Hub Sfera — ambiente local. Portas próprias para conviver com o Portal do Fera
+# (que usa 5434/5433/6379/3005 e a subnet 172.29.230.0/24).
+services:
+  db:
+    # Postgres 17: o dump do Supabase sai com pg_dump 17 e só restaura em 17+.
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: hub_rh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Dump do Supabase (cópia com dado pessoal: fica fora do git, em _local/).
+      - ./_local:/importar:ro
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub -d hub_rh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Banco descartável dos testes de integração, só com dados inventados.
+  postgres-test:
+    image: postgres:17-alpine
+    profiles: ["test"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hub_test
+      POSTGRES_PASSWORD: hub_test
+      POSTGRES_DB: hub_test
+    ports:
+      - "127.0.0.1:5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub_test -d hub_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- App completo em containers (perfil "app"). No dia a dia local basta
+  # "docker compose up -d db redis" + "npm run dev"; este perfil reproduz a
+  # homologação/produção na máquina: docker compose --profile app up -d --build
+  migrate:
+    profiles: ["app"]
+    build: { context: ., target: migrator }
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgresql://hub:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/hub_rh?schema=public
+    restart: "no"
+
+  app:
+    profiles: ["app"]
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    ports:
+      # Só loopback; na VPS quem publica é o proxy reverso da TI (HTTPS).
+      - "127.0.0.1:3007:3000"
+    environment:
+      DATABASE_URL: postgresql://hub:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/hub_rh?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env}@redis:6379
+      NEXTAUTH_URL: ${NEXTAUTH_URL_APP:-http://localhost:3007}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?defina NEXTAUTH_SECRET no .env}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      # Driver "local" dos PDFs do Fit Cultural (em produção: R2).
+      - arquivos:/app/_local/arquivos
+
+  cron:
+    profiles: ["app"]
+    build: { context: ., target: cron }
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgresql://hub:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/hub_rh?schema=public
+      TWYGO_API_TOKEN: ${TWYGO_API_TOKEN:-}
+
+volumes:
+  postgres_data:
+  redis_data:
+  arquivos:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.29.231.0/24

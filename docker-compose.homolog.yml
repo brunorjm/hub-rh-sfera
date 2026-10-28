@@ -1,0 +1,95 @@
+# Hub Sfera na VPS — homologação E produção (mesmo modelo do Portal do Fera).
+# Os dois ambientes usam este arquivo; mudam as variáveis e o banco.
+#
+# O banco NÃO sobe aqui: DATABASE_URL aponta para o Postgres da VPS, num banco
+# próprio do hub (ex.: hub_rh_homolog), nunca no do Portal. Antes da primeira
+# subida, a TI cria o banco, o usuário e o papel hub_app (docs/operacao/homologacao.md).
+#
+# Variáveis: no orquestrador (ou .env do servidor). Nada de valor real neste arquivo.
+# Sobe com: docker compose -f docker-compose.homolog.yml up -d --build
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: hubrh-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?defina REDIS_PASSWORD}"]
+    volumes:
+      - hubrh_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?defina REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks: [hubrh_net]
+
+  # Só migrations (prisma migrate deploy). A carga dos dados do Supabase é um
+  # passo manual, uma vez (scripts/importar-supabase.sh), descrito no roteiro.
+  migrate:
+    build: { context: ., target: migrator }
+    image: hubrh-migrate:latest
+    container_name: hubrh-migrate
+    environment:
+      DATABASE_URL: "${DATABASE_URL:?defina DATABASE_URL}"
+    restart: "no"
+    networks: [hubrh_net]
+
+  cron:
+    build: { context: ., target: cron }
+    image: hubrh-cron:latest
+    container_name: hubrh-cron
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: "${DATABASE_URL:?defina DATABASE_URL}"
+      TWYGO_API_TOKEN: ${TWYGO_API_TOKEN:-}
+    networks: [hubrh_net]
+
+  app:
+    build: { context: ., target: runner }
+    image: hubrh-app:latest
+    container_name: hubrh-app
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    ports:
+      # Quem publica para fora (HTTPS) é o proxy da TI, que aponta para esta porta.
+      - "3060:3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - "no-new-privileges:true"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "${DATABASE_URL:?defina DATABASE_URL}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:?defina REDIS_PASSWORD}@redis:6379"
+      NEXTAUTH_URL: "${NEXTAUTH_URL:?defina NEXTAUTH_URL (https://endereço-de-homologação)}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET:?defina NEXTAUTH_SECRET (32+ caracteres)}"
+      # Obrigatório atrás do proxy: o IP do limite de login vem do último X-Forwarded-For.
+      TRUST_PROXY: "true"
+      # Homologação usa R2 (bucket próprio do hub; o disco do container é só leitura).
+      STORAGE_DRIVER: r2
+      S3_ENDPOINT: "${S3_ENDPOINT:?defina S3_ENDPOINT}"
+      S3_BUCKET: "${S3_BUCKET:?defina S3_BUCKET}"
+      S3_ACCESS_KEY_ID: "${S3_ACCESS_KEY_ID:?defina S3_ACCESS_KEY_ID}"
+      S3_SECRET_ACCESS_KEY: "${S3_SECRET_ACCESS_KEY:?defina S3_SECRET_ACCESS_KEY}"
+    networks: [hubrh_net]
+
+volumes:
+  hubrh_redis:
+
+networks:
+  # Subnet fixa fora da faixa 172.16–31.x.x da rede da empresa (mesmo achado do Portal)
+  # e diferente da do Portal (172.29.230.0/24).
+  hubrh_net:
+    ipam:
+      config:
+        - subnet: 172.29.232.0/24

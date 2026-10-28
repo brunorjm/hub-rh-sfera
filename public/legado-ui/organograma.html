@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Organograma Sfera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ground:#F2F4F3; --surface:#FFFFFF; --surface-2:#F7F9F8; --ink:#16201E; --muted:#5B6865; --faint:#8A9693;
+  --line:#D3DBD8; --line-strong:#AEBAB6; --focus:#0E6B63; --hi:#FFE9A8; --hi-ink:#5A4300;
+  --warn-bg:#FFF4E0; --warn-line:#E7B45C; --warn-ink:#7A4A00;
+  --off-ink:#A23B32; --off-bg:#FBE9E6; --off-line:#D98B83; --b-C:#44507A; --b-B:#1B7A52; --b-V:#A86A0E; --b-H:#1E5EA6; --b-L:#B3302A; --b-Q:#B63E7A;
+  --root-bg:#16201E; --root-ink:#F2F4F3;
+  /* mesma fonte do resto do Hub (index.html) */
+  --display:"Ubuntu", system-ui, sans-serif;
+  --body:"Ubuntu", system-ui, sans-serif;
+  --mono:"Ubuntu", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#101514; --surface:#18201E; --surface-2:#1D2624; --ink:#E4EBE9; --muted:#9DABA7; --faint:#71807C;
+    --line:#2E3A37; --line-strong:#485753; --focus:#5CC7BB; --hi:#5C4A12; --hi-ink:#FFE9A8;
+    --warn-bg:#2E2412; --warn-line:#8A6420; --warn-ink:#F3C77A;
+    --off-ink:#F09A90; --off-bg:#3A1F1C; --off-line:#9A4F47; --b-C:#8C9AD0; --b-B:#4FBF8B; --b-V:#E0A645; --b-H:#6BA5EC; --b-L:#EE7B73; --b-Q:#E68BB9;
+    --root-bg:#E4EBE9; --root-ink:#101514;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#101514; --surface:#18201E; --surface-2:#1D2624; --ink:#E4EBE9; --muted:#9DABA7; --faint:#71807C;
+  --line:#2E3A37; --line-strong:#485753; --focus:#5CC7BB; --hi:#5C4A12; --hi-ink:#FFE9A8;
+  --warn-bg:#2E2412; --warn-line:#8A6420; --warn-ink:#F3C77A;
+  --off-ink:#F09A90; --off-bg:#3A1F1C; --off-line:#9A4F47; --b-C:#8C9AD0; --b-B:#4FBF8B; --b-V:#E0A645; --b-H:#6BA5EC; --b-L:#EE7B73; --b-Q:#E68BB9;
+  --root-bg:#E4EBE9; --root-ink:#101514;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:28px 56px;display:flex;flex-direction:column;gap:22px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4vw,40px);font-weight:700;line-height:1.05}
+h2{font-size:20px;font-weight:700}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px}
+.head p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.stats{display:flex;flex-wrap:wrap;gap:6px 28px}
+.stat{display:flex;flex-direction:column}
+.stat b{font-family:var(--mono);font-size:25px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* business mix bar + filters */
+.mix{display:flex;flex-direction:column;gap:10px}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.bar i{display:block;height:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12.5px;display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip:hover{border-color:var(--line-strong)}
+.chip[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.chip .dot{width:9px;height:9px;border-radius:50%}
+.chip .n{font-family:var(--mono);font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dot.b-C,.bar .b-C{background:var(--b-C)} .dot.b-B,.bar .b-B{background:var(--b-B)} .dot.b-V,.bar .b-V{background:var(--b-V)}
+.dot.b-H,.bar .b-H{background:var(--b-H)} .dot.b-L,.bar .b-L{background:var(--b-L)} .dot.b-Q,.bar .b-Q{background:var(--b-Q)}
+
+/* chart panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1 1 260px;max-width:420px}
+.search input{width:100%;font:inherit;padding:8px 12px 8px 32px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink)}
+.search input:focus{outline:2px solid var(--focus);outline-offset:1px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--faint)}
+.results{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 10px 30px rgb(0 0 0 / .14);max-height:340px;overflow:auto;padding:4px}
+.results button{all:unset;box-sizing:border-box;display:flex;flex-direction:column;width:100%;padding:7px 10px;border-radius:6px;cursor:pointer}
+.results button:hover,.results button.on{background:var(--surface-2)}
+.results .r1{font-weight:600}
+.results .r2{font-size:12px;color:var(--muted)}
+.results .none{padding:8px 10px;color:var(--muted);font-size:13px}
+.tbtn{font:inherit;font-size:13px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
+.tbtn:hover{border-color:var(--line-strong)}
+.tbtn:focus-visible,.chip:focus-visible,.card:focus-visible,.lk:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.zoom{display:flex;align-items:center;gap:4px;margin-left:auto}
+.zoom .z{font-family:var(--mono);font-size:12px;width:44px;text-align:center;color:var(--muted)}
+.zoom .tbtn{padding:7px 10px}
+.viewport{position:relative;overflow:auto;height:min(76vh,860px);min-height:420px;cursor:grab;background:
+  radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/22px 22px, var(--surface-2);border-radius:0 0 12px 12px}
+.viewport.drag{cursor:grabbing;user-select:none}
+.canvas{display:inline-flex;align-items:flex-start;gap:56px;padding:28px 40px 60px;min-width:100%;justify-content:center}
+
+/* tree connectors */
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree ul{display:flex;justify-content:center;align-items:flex-start;padding-top:22px;position:relative}
+.tree li.t{position:relative;display:flex;flex-direction:column;align-items:center;padding:22px 7px 0}
+.tree>li.t{padding-top:0}
+.tree li.t::before,.tree li.t::after{content:"";position:absolute;top:0;right:50%;width:50%;height:22px;border-top:1.5px solid var(--line-strong)}
+.tree li.t::after{right:auto;left:50%;border-left:1.5px solid var(--line-strong)}
+.tree li.t:only-child::before,.tree li.t:only-child::after{display:none}
+.tree li.t:only-child{padding-top:0}
+.tree li.t:first-child::before,.tree li.t:last-child::after{border:0}
+.tree li.t:last-child::before{border-right:1.5px solid var(--line-strong);border-radius:0 8px 0 0}
+.tree li.t:first-child::after{border-radius:8px 0 0 0}
+.tree ul::before{content:"";position:absolute;top:0;left:50%;height:22px;border-left:1.5px solid var(--line-strong)}
+.tree>li.t::before,.tree>li.t::after{display:none}
+
+/* cards */
+.card{all:unset;box-sizing:border-box;width:214px;display:flex;flex-direction:column;gap:6px;padding:11px 12px 10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;cursor:pointer;position:relative;box-shadow:0 1px 0 rgb(0 0 0 / .03)}
+.card:hover{border-color:var(--line-strong)}
+.card.leafonly{cursor:default}
+.card .top{display:flex;gap:10px;align-items:flex-start}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;letter-spacing:.02em;color:#fff;font-family:var(--body)}
+.av.b-C{background:var(--b-C)} .av.b-B{background:var(--b-B)} .av.b-V{background:var(--b-V)} .av.b-H{background:var(--b-H)} .av.b-L{background:var(--b-L)} .av.b-Q{background:var(--b-Q)}
+:root[data-theme="dark"] .av{color:#101514}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .av{color:#101514}}
+.nm{font-weight:600;font-size:13.5px;line-height:1.25}
+.cg{font-size:12px;color:var(--muted);line-height:1.3;margin-top:2px}
+.dp{font-size:11.5px;color:var(--faint);line-height:1.3}
+.ct{display:flex;align-items:center;justify-content:space-between;gap:6px;border-top:1px solid var(--line);padding-top:7px;font-size:11.5px;color:var(--muted)}
+.ct b{font-family:var(--mono);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.chev{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted);transition:transform .15s}
+.card[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.card.root{background:var(--root-bg);border-color:var(--root-bg);color:var(--root-ink);width:236px}
+.card.root .cg,.card.root .dp,.card.root .ct{color:color-mix(in srgb,var(--root-ink) 70%,transparent)}
+.card.root .ct{border-color:color-mix(in srgb,var(--root-ink) 22%,transparent)}
+.card.root .ct b{color:var(--root-ink)}
+.card.root .chev{border-color:color-mix(in srgb,var(--root-ink) 30%,transparent);color:var(--root-ink)}
+.flash{animation:flash 2.6s ease-out}
+@keyframes flash{0%,40%{box-shadow:0 0 0 4px var(--hi),0 0 0 6px var(--focus)}100%{box-shadow:0 0 0 0 transparent}}
+
+/* direct-team list */
+.team{width:214px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.team-h{display:flex;justify-content:space-between;align-items:center;padding:7px 11px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--line)}
+.team-h b{font-family:var(--mono);font-weight:500;color:var(--ink);letter-spacing:0}
+.team ol{list-style:none;margin:0;padding:3px 0}
+.row{display:flex;gap:8px;align-items:flex-start;padding:5px 11px}
+.row+.row{border-top:1px dashed var(--line)}
+.row .dot{flex:none;width:7px;height:7px;border-radius:50%;margin-top:6px}
+.row .nm{font-size:12.5px;font-weight:500}
+.row .cg{font-size:11.5px;margin-top:0}
+.row.flash{animation:rowflash 2.6s ease-out}
+@keyframes rowflash{0%,45%{background:var(--hi)}100%{background:transparent}}
+
+/* orphan group */
+.orphan{display:flex;flex-direction:column;align-items:center;gap:0}
+.orphan .card{border:1.5px dashed var(--warn-line);background:var(--warn-bg);cursor:default}
+.orphan .card .nm{color:var(--warn-ink)}
+.orphan .stem{width:0;height:22px;border-left:1.5px dashed var(--warn-line)}
+.card.ghost{border:1.5px dashed var(--warn-line);background:var(--warn-bg)}
+.card.ghost .nm{color:var(--warn-ink)}
+.notes .gh{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--muted);margin-top:4px}
+.notes .sev.ok{background:var(--b-B)}
+.warn-ico{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--warn-line);color:#fff;font-weight:700}
+
+/* lower sections */
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.sec .sub{margin:0;color:var(--muted);font-size:13px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr.grp td{background:var(--surface-2);font-weight:600;font-size:12px;padding-top:10px}
+tr.grp td .n{font-family:var(--mono);font-weight:500;color:var(--muted);margin-left:6px}
+.lk{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}
+.lk:hover{text-decoration-color:var(--ink)}
+.tag{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:4px;white-space:nowrap}
+.tag.warn{color:var(--warn-ink);border-color:var(--warn-line);background:var(--warn-bg)}
+.notes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.notes li{display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:13.5px}
+.notes .sev{width:8px;height:8px;border-radius:50%;margin-top:7px;background:var(--line-strong)}
+.notes .sev.w{background:var(--warn-line)}
+.notes strong{font-weight:600}
+.foot{font-size:12px;color:var(--faint)}
+.row.off .nm{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--off-line);text-decoration-thickness:1px}
+.row.off .dot{background:transparent!important;border:1.5px solid var(--off-line)}
+.pill-off{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--off-ink);background:var(--off-bg);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:1px;text-decoration:none}
+.offn{color:var(--off-ink);font-size:11px}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);white-space:nowrap}
+.toggle input{accent-color:var(--off-ink);width:15px;height:15px;margin:0}
+.stat.off b{color:var(--off-ink)}
+td.off{color:var(--off-ink)}
+@media (max-width:640px){.zoom{margin-left:0}.viewport{height:70vh}}
+@media (prefers-reduced-motion:reduce){.flash,.row.flash{animation:none;outline:3px solid var(--focus)}.chev{transition:none}}
+/* marcadores do Headcount (mesmas cores dos cards da tela Headcount) */
+:root{--t-1:#C2477A;--t-2:#B07800;--t-4:#C53030;--t-8:#6B46C1;--t-16:#C4531F}
+.hl-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hl-row .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin-right:4px}
+.chip .sw{width:9px;height:9px;border-radius:2px}
+.tg{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.02em;line-height:1;padding:3px 5px;border-radius:4px;margin:0 0 0 4px;vertical-align:1px;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent);text-decoration:none}
+.tgs{display:flex;flex-wrap:wrap;gap:4px;font-size:11px;color:var(--muted)}
+.tgs .tg{margin:0}
+.card.root .tg{color:var(--root-ink);border-color:color-mix(in srgb,var(--root-ink) 35%,transparent);background:transparent}
+.row.afast .dot{background:transparent!important;border:1.5px dashed var(--c)}
+.row.afast .nm{font-style:italic}
+.dim{opacity:.28}
+.card.hit,.row.hit{box-shadow:inset 3px 0 0 var(--c)}
+.card.above{background:var(--surface-2);border-style:dashed}
+.card.me{border:2px solid var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 18%,transparent)}
+.you{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--focus);border-radius:4px;padding:2px 5px;margin-left:5px;vertical-align:1px}
+.empty-state{max-width:560px;margin:80px auto;padding:24px;text-align:center;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:12px}
+</style>
+</head>
+<body>
+
+<div class="empty-state" id="emptyState" hidden></div>
+<div class="wrap" id="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">Sfera Multifranquias · Headcount Feedz</div>
+      <h1>Organograma Sfera</h1>
+      <p>Estrutura montada pelo gestor direto de cada colaborador, ativos e desativados, a partir da última planilha de Colaboradores enviada ao Hub. Clique em um cartão para abrir ou fechar a equipe; arraste o fundo para navegar.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="mix">
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <div class="chips" id="chips" role="group" aria-label="Filtrar por negócio"></div>
+    <div class="hl-row" id="hlChips" role="group" aria-label="Destacar indicadores do Headcount"></div>
+  </div>
+
+  <section class="panel" aria-label="Organograma">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Buscar pessoa, cargo ou loja" autocomplete="off" aria-label="Buscar no organograma">
+        <div class="results" id="results" hidden></div>
+      </div>
+      <button class="tbtn" id="bLead" type="button">Estrutura de liderança</button>
+      <button class="tbtn" id="bAll" type="button">Abrir tudo</button>
+      <button class="tbtn" id="bReset" type="button">Visão inicial</button>
+      <label class="toggle" for="showOff"><input type="checkbox" id="showOff" checked> Mostrar desativados</label>
+      <div class="zoom">
+        <button class="tbtn" id="zOut" type="button" aria-label="Diminuir zoom">−</button>
+        <span class="z" id="zVal">100%</span>
+        <button class="tbtn" id="zIn" type="button" aria-label="Aumentar zoom">+</button>
+        <button class="tbtn" id="zFit" type="button">Ajustar</button>
+      </div>
+    </div>
+    <div class="viewport" id="vp"><div class="canvas" id="canvas"></div></div>
+  </section>
+
+  <div class="grid2">
+    <section class="sec">
+      <div>
+        <h2>Quadro por departamento</h2>
+        <p class="sub">Colaboradores ativos e desativados por departamento do Feedz e quem responde pela área. Clique no nome para localizar no organograma.</p>
+      </div>
+      <div class="tablewrap"><table id="deptTable"></table></div>
+    </section>
+    <section class="sec">
+      <div>
+        <h2>Notas da estrutura</h2>
+        <p class="sub">O que já foi confirmado pelo RH e o que ainda está em aberto na base do Feedz.</p>
+      </div>
+      <ul class="notes" id="notes"></ul>
+      <p class="foot" id="foot"></p>
+    </section>
+  </div>
+</div>
+
+<script>
+// Os dados vêm de HUB_ORG, montado pela janela do Hub (esta página é aberta num iframe
+// da tela Indicadores → Organograma — ver js/sections/organograma.js):
+//  - modo "completo" (permissão indicadores.organograma_completo): HUB_DATA.colaboradores,
+//    a última planilha de Colaboradores enviada ao Hub, com a RLS do usuário logado;
+//  - modo "galho" (demais usuários): só a linha de liderança acima da pessoa logada e toda
+//    a equipe abaixo dela, devolvidas pela função organograma_meu_galho() do Supabase
+//    (supabase-organograma.sql) — os outros galhos nem chegam ao navegador.
+const CEO = "Ricardo Sobral";
+const GHOST_NAME = "Operador de Franquias - O Boticário";
+const LEO_NAME = "Leonardo Sobral";
+function hubOrg(){
+  try {
+    if(!window.parent || window.parent === window) return null;
+    return window.parent.HUB_ORG || {modo:"completo", rows:(window.parent.HUB_DATA && window.parent.HUB_DATA.colaboradores) || []};
+  } catch(e){ return null; }
+}
+const ORG = hubOrg();
+const GALHO = !!ORG && ORG.modo === "galho";
+// Só Ativo e Desativado entram no organograma; Desligado (ex-colaborador) nunca —
+// mesma regra do Headcount (dedupeHeadcount em js/metrics-indicadores.js).
+const situacaoOk = r => { const s = String(r.situacao || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase(); return s === "ativo" || s === "desativado"; };
+const ROWS = ((ORG && ORG.rows) || []).filter(r => (r.nome || r.nome_completo) && situacaoOk(r));
+const ORG_OK = ROWS.length > 0;
+if(!ORG_OK){
+  document.getElementById("wrap").hidden = true;
+  const es = document.getElementById("emptyState");
+  es.hidden = false;
+  es.textContent = !ORG
+    ? "Esta página só funciona dentro do Hub Sfera (Indicadores → Organograma)."
+    : ORG.erro
+      ? (/organograma_meu_galho|function|funç/i.test(ORG.erro)
+          ? "O organograma por galho ainda não foi ativado no banco. Peça ao administrador para rodar supabase-organograma.sql no Supabase."
+          : "Não foi possível carregar o organograma: " + ORG.erro)
+    : GALHO
+      ? "Seu login não está ligado a um colaborador do Feedz, então não dá para montar o seu galho do organograma. Peça ao administrador para escolher o seu nome no campo “Colaborador no Feedz” em Administração → Cadastro de Acessos."
+      : "Nenhum colaborador carregado. Envie a planilha de Colaboradores em Administração → Upload de Planilhas.";
+}
+if(ORG_OK){
+const BIZ = {C:"Corporativo",B:"O Boticário · Lojas",V:"O Boticário · Venda Direta",H:"Hering",L:"Levi's",Q:"Quem disse, Berenice?"};
+const BORDER = ["C","B","V","H","L","Q"];
+const BIT = {C:1,B:2,V:4,H:8,L:16,Q:32};
+function negocio(dep){
+  if(dep.startsWith("Compras")) return "C";
+  if(dep.startsWith("O Boticário VD")) return "V";
+  if(dep.startsWith("O Boticário")) return "B";
+  if(dep.includes("Hering") && !dep.includes("Levis")) return "H";
+  if(dep.includes("Levis") && !dep.includes("Hering")) return "L";
+  if(dep.startsWith("Quem disse")) return "Q";
+  return "C";
+}
+// Marcadores do Headcount: mesmas tags da coluna "Grupos" do Feedz que a tela
+// Indicadores → Headcount usa nos cards de cota e afastamento (HUB_METRICS.temGrupo),
+// mais o período de experiência (até 90 dias da admissão). Só valem para ativos.
+const TAGS = [
+  {bit:1, grupo:"cota.pcd", label:"PCD", curto:"PCD", chip:"Cota PCD"},
+  {bit:2, grupo:"cota.aprendiz", label:"Jovem Aprendiz", curto:"JA", chip:"Jovem Aprendiz"},
+  {bit:4, grupo:"afastamento.inss", label:"Afastado INSS", curto:"INSS", chip:"Afastamento INSS", afast:1},
+  {bit:8, grupo:"afastamento.maternidade", label:"Licença maternidade", curto:"Matern.", chip:"Licença maternidade", afast:1},
+  {bit:16, label:"Em experiência", curto:"Exp.", chip:"Em experiência (até 90 dias)"}
+];
+const AFAST = 4|8;
+function hubFn(path){ try { return path.split(".").reduce((o,k)=>o[k], window.parent); } catch(e){ return null; } }
+const temGrupo = hubFn("HUB_METRICS.temGrupo") || ((r,tag) => String(r.grupos||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().includes(tag));
+const HOJE = (hubFn("HUB_UTILS.todayISO") || (() => new Date().toISOString().slice(0,10)))();
+function tagsOf(r){
+  let t = 0;
+  TAGS.forEach(tg => { if(tg.grupo && temGrupo(r, tg.grupo)) t |= tg.bit; });
+  if(r.data_admissao){ const dias = Math.round((new Date(HOJE+"T00:00:00Z") - new Date(String(r.data_admissao).slice(0,10)+"T00:00:00Z"))/86400000); if(dias >= 0 && dias <= 90) t |= 16; }
+  return t;
+}
+// Mesma lógica do gerar_organograma.py, em JavaScript.
+const DATA = (function(){
+  const clean = v => (v == null ? "" : String(v)).trim();
+  const rows = ROWS.map(r => {
+    const s = clean(r.situacao).toLowerCase() === "ativo" ? 0 : 1;
+    return {
+      n: clean(r.nome) || clean(r.nome_completo), nc: clean(r.nome_completo),
+      c: clean(r.cargo).replace("Coordenador (a)","Coordenador(a)").replace("Gerente de Logistica","Gerente de Logística"),
+      d: clean(r.departamento) || "Sem departamento", u: clean(r.unidade) || "Sem unidade",
+      g: clean(r.gestor_direto), s, t: s ? 0 : tagsOf(r), rel: r.relacao || ""
+    };
+  }).sort((a,b) => a.s - b.s);
+  const nodes = rows.map(r => ({n:r.n, c:r.c, d:r.d, u:r.u, b:negocio(r.d), s:r.s, t:r.t, k:[], a:r.rel==="acima"?1:0, me:r.rel==="eu"?1:0}));
+  // ativos primeiro: em nome repetido (recontratação), o gestor aponta para o cadastro ativo
+  const idx = {}, idxFull = {};
+  rows.forEach((r,i) => { if(idx[r.n] === undefined) idx[r.n] = i; if(r.nc && idxFull[r.nc] === undefined) idxFull[r.nc] = i; });
+  const ceo = idx[CEO];
+  const p = rows.map((r,i) => {
+    if(i === ceo || !r.g) return -1;
+    const j = idx[r.g] !== undefined ? idx[r.g] : idxFull[r.g];
+    return (j === undefined || j === i) ? -1 : j;
+  });
+  // quebra ciclos de gestor (A → B → A), se houver erro de cadastro
+  p.forEach((_,i) => { const seen = new Set([i]); let j = p[i]; while(j !== -1){ if(seen.has(j)){ p[i] = -1; break; } seen.add(j); j = p[j]; } });
+  p.forEach((j,i) => { if(j !== -1) nodes[j].k.push(i); });
+  const ghostKids = [], loose = [];
+  rows.forEach((r,i) => { if(p[i] === -1 && i !== ceo) (r.g === GHOST_NAME ? ghostKids : loose).push(i); });
+
+  // quadro por departamento (só relações reais de gestor, sem os nós sintéticos)
+  const membros = {};
+  nodes.forEach((nd,i) => { if(!nd.a) (membros[nd.d] = membros[nd.d] || []).push(i); });
+  const depts = Object.keys(membros).map(d => {
+    const todos = membros[d], ativos = todos.filter(m => !nodes[m].s), ms = ativos.length ? ativos : todos, set = new Set(ms);
+    const topo = ms.filter(m => !set.has(p[m]));
+    const lideres = topo.filter(m => nodes[m].k.length);
+    let l, x = "";
+    if(lideres.length) l = lideres.map(m => nodes[m].n);
+    else {
+      const ps = [...new Set(topo.map(m => p[m]).filter(j => j !== -1))].sort((a,b) => nodes[a].n.localeCompare(nodes[b].n,"pt-BR"));
+      l = ps.map(j => nodes[j].n); x = ps.length ? "externo" : "sem";
+    }
+    return {d, hc:ativos.length, dz:todos.length-ativos.length, b:negocio(d), l, x, tc:TAGS.map(tg => ativos.filter(m => nodes[m].t & tg.bit).length)};
+  }).sort((a,b) => a.d.localeCompare(b.d,"pt-BR"));
+
+  const base = nodes.filter(n => !n.a), ativos = base.filter(n => !n.s).length;
+  return {nodes, ceo: ceo === undefined ? -1 : ceo, ghostKids, loose, depts,
+    stats:{ativos, desativados:base.length-ativos, total:base.length, lideres:base.filter(n => n.k.length).length, deps:Object.keys(membros).length}};
+})();
+const N = DATA.nodes.map((nd,i)=>Object.assign({i}, nd));
+let showOff = true;
+const vis = k => showOff || !N[k].s;
+const ORPH = [];
+// Sem o CEO na base visível (acesso restrito a algumas unidades/departamentos), a raiz vira um cartão sintético.
+const semGestor = ids => { const i = N.length; N.push({i,n:"Gestor não identificado",c:"Gestor direto em branco, desligado ou fora da base do Feedz",d:"Revisar o cadastro no Feedz",u:"Pendência",b:"C",k:ids,s:0,v:1}); return i; };
+// No modo galho, quem é da equipe mas ficou sem gestor (ex.: o gestor registrado
+// é Desligado) vai para "Gestor não identificado" logo abaixo da pessoa logada,
+// em vez de subir para o topo e quebrar a linha de liderança.
+let loose = DATA.loose.slice();
+const ME0 = N.findIndex(nd=>nd.me);
+if(GALHO && ME0 >= 0){
+  const orfaos = loose.filter(i=>!N[i].a && !N[i].me);
+  if(orfaos.length){ loose = loose.filter(i=>!orfaos.includes(i)); N[ME0].k.push(semGestor(orfaos)); }
+}
+let ROOT = DATA.ceo;
+if(ROOT < 0 && loose.length === 1 && !DATA.ghostKids.length){
+  ROOT = loose[0];
+} else if(ROOT < 0){
+  ROOT = N.length;
+  N.push({i:ROOT,n:"Sfera Multifranquias",c:"Estrutura visível no seu acesso",d:"Pessoas cujo gestor está fora do seu acesso",u:"ficam no primeiro nível",b:"C",k:loose,s:0,x:1});
+} else if(loose.length){
+  N[ROOT].k.push(semGestor(loose));
+}
+// Operador de Franquias: usuário fantasma que responde pelo Marketing, posicionado abaixo de Leonardo Sobral
+const LEO = N.findIndex(nd=>nd.n===LEO_NAME);
+const GHOST = DATA.ghostKids.length ? N.length : -1;
+if(GHOST >= 0){
+  N.push({i:GHOST,n:GHOST_NAME,c:"Usuário fantasma, sem pessoa ativa",d:"Marketing",u:"Escritório",b:"C",k:DATA.ghostKids.slice(),s:0,v:1});
+  N[LEO >= 0 ? LEO : ROOT].k.push(GHOST);
+}
+// ordem hierárquica dos cargos: menor número = cargo mais alto
+const RANKS = [
+  [/^ceo\b/,0],[/^diretor/,1],[/^head\b/,2],[/^gerente/,3],[/^coordenador/,4],[/^supervisor/,5],[/^lider/,6],
+  [/^analista/,7],[/^tecnico/,8],[/^(assistente|secretaria)/,9],[/^(consultor|vendedor|promotor)/,10],
+  [/^(fiscal|caixa|atendente)/,11],[/^auxiliar/,12],[/^estagiario/,13],[/^jovem aprendiz/,14]
+];
+const rankOf = c => { const s=c.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(); for(const [re,r] of RANKS) if(re.test(s)) return r; return 15; };
+const BRUNO = N.findIndex(nd=>nd.n==="Bruno Guimarães Batista");
+if(BRUNO>=0) N[BRUNO].c="Gerente de Logística e Auditoria";
+const parent = {};
+N.forEach(nd=>nd.k.forEach(k=>parent[k]=nd.i));
+const isMgr = i => N[i].k.length>0;
+const actKids = i => N[i].k.filter(k=>!N[k].s && !N[k].v);
+// subtree totals, business masks
+const total = new Array(N.length).fill(0), mask = new Array(N.length).fill(0);
+const offTotal = new Array(N.length).fill(0);
+// tsub[i][j] = ativos da equipe (toda a subárvore, sem a própria pessoa) com o marcador TAGS[j]; tany[i] = marcadores presentes na subárvore, incluindo a pessoa
+const tsub = N.map(()=>TAGS.map(()=>0)), tany = N.map(nd=>nd.t||0);
+(function walk(i){ let t=0, o=0, m=BIT[N[i].b]; for(const k of N[i].k){ walk(k); if(N[k].s) o++; else t+=(N[k].v?0:1)+total[k]; o+=offTotal[k]; m|=mask[k]; TAGS.forEach((tg,j)=>{ tsub[i][j]+=tsub[k][j]+((N[k].t&tg.bit)?1:0); }); tany[i]|=tany[k]; } total[i]=t; offTotal[i]=o; mask[i]=m; })(ROOT);
+N.forEach(nd=>{ nd.r=rankOf(nd.c); });
+N.forEach(nd=>nd.k.sort((a,b)=> (isMgr(a)?0:1)-(isMgr(b)?0:1) || N[a].s-N[b].s || N[a].r-N[b].r || (isMgr(a)?total[b]-total[a]:N[a].c.localeCompare(N[b].c,"pt-BR")) || N[a].n.localeCompare(N[b].n,"pt-BR")));
+N.forEach(nd=>{ if(!mask[nd.i]) mask[nd.i]=BIT[nd.b]; });
+const depth = i => { let d=0; while(parent[i]!==undefined){ i=parent[i]; d++; } return d; };
+let maxDepth=0; N.forEach(nd=>{ if(parent[nd.i]!==undefined||nd.i===ROOT) maxDepth=Math.max(maxDepth,depth(nd.i)); });
+
+const open = new Set();
+let filter = 0; // 0 = all
+let hl = 0; // marcador do Headcount em destaque (bit de TAGS), 0 = nenhum
+const tagVar = bit => `--c:var(--t-${bit})`;
+const badges = t => TAGS.filter(tg=>t&tg.bit).map(tg=>`<span class="tg" style="${tagVar(tg.bit)}" title="${tg.label}">${tg.curto}</span>`).join("");
+const hlIn = i => !hl || (tany[i]&hl);
+let zoom = 1;
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const initials = n => { const p=n.split(/\s+/).filter(w=>w.length>2||/^[A-ZÀ-Ú]/.test(w)); const a=p[0]||n, b=p.length>1?p[p.length-1]:""; return (a[0]+(b?b[0]:"")).toUpperCase(); };
+const fmt = n => n.toLocaleString("pt-BR");
+
+/* ---------- header ---------- */
+const bizCount = {}; BORDER.forEach(b=>bizCount[b]=0); N.forEach(nd=>{ if(!nd.s && !nd.v && !nd.x && !nd.a) bizCount[nd.b]++; });
+const S = DATA.stats;
+if(GALHO){
+  document.querySelector(".head p").textContent = "Sua linha de liderança, de você até o topo, e toda a equipe que responde a você, direta ou indiretamente. Os números, o quadro por departamento e os destaques contam só você e a sua equipe. Clique em um cartão para abrir ou fechar a equipe; arraste o fundo para navegar.";
+  document.querySelector(".head .eyebrow").textContent = "Sfera Multifranquias · Seu galho do organograma";
+}
+const LBL_ATIVOS = GALHO ? "ativos (você e sua equipe)" : "colaboradores ativos";
+document.getElementById("stats").innerHTML = [
+  [S.ativos,LBL_ATIVOS],[S.desativados,"desativados",1],[S.lideres,"pessoas com liderados"],[S.deps,"departamentos"],[maxDepth+1,"níveis hierárquicos"]
+].map(([v,l,o])=>`<div class="stat${o?" off":""}"><b>${fmt(v)}</b><span>${l}</span></div>`).join("");
+document.getElementById("bar").innerHTML = BORDER.map(b=>`<i class="b-${b}" style="width:${(bizCount[b]/S.ativos*100).toFixed(2)}%"></i>`).join("");
+function renderChips(){
+  document.getElementById("chips").innerHTML =
+    `<button class="chip" type="button" data-f="0" aria-pressed="${filter===0}">Todos os negócios <span class="n">${fmt(S.ativos)}</span></button>` +
+    BORDER.filter(b=>bizCount[b]||filter===BIT[b]).map(b=>`<button class="chip" type="button" data-f="${BIT[b]}" aria-pressed="${filter===BIT[b]}"><span class="dot b-${b}"></span>${BIZ[b]} <span class="n">${fmt(bizCount[b])}</span></button>`).join("");
+}
+const tagCount = TAGS.map(tg=>N.filter(nd=>!nd.s && (nd.t&tg.bit)).length);
+function renderHl(){
+  document.getElementById("hlChips").innerHTML = `<span class="lbl">Destacar do Headcount</span>` +
+    TAGS.map((tg,j)=>`<button class="chip" type="button" data-h="${tg.bit}" aria-pressed="${hl===tg.bit}" ${tagCount[j]?"":"disabled"}><span class="sw" style="background:var(--t-${tg.bit})"></span>${tg.chip} <span class="n">${fmt(tagCount[j])}</span></button>`).join("");
+}
+function applyHl(){ // abre o caminho até cada pessoa com o marcador
+  open.clear(); open.add(ROOT);
+  N.forEach(nd=>{ if(!nd.s && (nd.t&hl) && (!filter || (BIT[nd.b]&filter))){ let p=parent[nd.i]; while(p!==undefined){ open.add(p); p=parent[p]; } } });
+}
+document.getElementById("hlChips").addEventListener("click",e=>{
+  const c=e.target.closest(".chip[data-h]"); if(!c) return;
+  const h=+c.dataset.h; hl = (hl===h)?0:h;
+  if(hl) applyHl(); else setInitial();
+  renderHl(); render(); requestAnimationFrame(()=>{ fit(); centerOn(homeCard(), GALHO); });
+});
+document.getElementById("chips").addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  const f=+c.dataset.f; filter = (filter===f)?0:f;
+  if(filter){ // open the leadership path into that business
+    if(hl) applyHl(); else { open.clear(); N.forEach(nd=>{ if(nd.k.some(k=>isMgr(k)&&(mask[k]&filter))) open.add(nd.i); }); open.add(ROOT); }
+  } else if(hl) applyHl(); else setInitial();
+  renderChips(); render(); requestAnimationFrame(()=>{ fit(); centerOn(homeCard(), GALHO); });
+});
+
+/* ---------- tree ---------- */
+function cardHTML(i){
+  const nd=N[i], mgr=isMgr(i), isRoot=i===ROOT;
+  const ex=open.has(i);
+  const counts = mgr
+    ? `<span><b>${actKids(i).length}</b> ${actKids(i).length===1?"direto":"diretos"}${total[i]!==actKids(i).length?` · <b>${fmt(total[i])}</b> na equipe`:""}${showOff&&offTotal[i]?`<br><span class="offn">+${offTotal[i]} desativado${offTotal[i]>1?"s":""}</span>`:""}</span><span class="chev" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>`
+    : `<span>Sem liderados</span>`;
+  const countsA = `<span>Liderança acima de você</span>${mgr?`<span class="chev" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>`:""}`;
+  const avatar = nd.v ? `<span class="warn-ico" aria-hidden="true">!</span>` : `<span class="av b-${nd.b}">${esc(initials(nd.n))}</span>`;
+  // resumo dos marcadores do Headcount na equipe (com destaque ativo, só o marcador destacado)
+  const resumo = mgr && !nd.a ? TAGS.map((tg,j)=>[tg,tsub[i][j]]).filter(([tg,n])=>n && (!hl || tg.bit===hl))
+    .map(([tg,n])=>`<span class="tg" style="${tagVar(tg.bit)}" title="${n} na equipe: ${tg.label}">${tg.curto} ${fmt(n)}</span>`).join("") : "";
+  const hit = hl && (nd.t&hl);
+  return `<button type="button" class="card${isRoot&&!nd.a?" root":""}${nd.a?" above":""}${nd.me?" me":""}${mgr?"":" leafonly"}${nd.v?" ghost":""}${hit?" hit":""}" ${hit?`style="${tagVar(hl)}"`:""} data-i="${i}" ${mgr?`aria-expanded="${ex}"`:""} title="${esc(nd.n)} · ${esc(nd.c)}">
+    <span class="top">${avatar}<span><span class="nm" style="display:block">${esc(nd.n)}${nd.me?`<span class="you">Você</span>`:""}${badges(nd.t)}</span><span class="cg" style="display:block">${esc(nd.c)}</span></span></span>
+    <span class="dp">${esc(nd.d)} · ${esc(nd.u)}</span>
+    <span class="ct">${nd.a?countsA:counts}</span>${resumo?`<span class="tgs">${resumo}</span>`:""}</button>`;
+}
+function teamHTML(ids,label){
+  const on=ids.filter(k=>!N[k].s).length, off=ids.length-on;
+  return `<div class="team"><div class="team-h"><span>${label}</span><span><b>${on}</b>${off?` <span class="offn">+${off} desat.</span>`:""}</span></div><ol>${
+    ids.map(k=>{ const t=N[k].t, af=t&AFAST, cls=(N[k].s?" off":"")+(af?" afast":"")+(hl?((t&hl)?" hit":" dim"):"");
+      const cor = hl&&(t&hl) ? tagVar(hl) : af ? tagVar(af&4?4:8) : "";
+      return `<li class="row${cls}" data-i="${k}"${cor?` style="${cor}"`:""}><span class="dot b-${N[k].b}"></span><span><span class="nm" style="display:block">${esc(N[k].n)}${N[k].s?`<span class="pill-off">Desativado</span>`:""}${badges(t)}</span><span class="cg" style="display:block">${esc(N[k].c)}</span></span></li>`; }).join("")
+  }</ol></div>`;
+}
+function nodeHTML(i){
+  let h = `<li class="t">${cardHTML(i)}`;
+  if(open.has(i) && isMgr(i)){
+    const kids = N[i].k.filter(k=>vis(k) && (!filter || (mask[k]&filter)));
+    const mgrs = kids.filter(k=>isMgr(k) && hlIn(k)), leaves = kids.filter(k=>!isMgr(k));
+    const items = mgrs.map(nodeHTML);
+    if(leaves.length) items.unshift(`<li class="t">${teamHTML(leaves, mgrs.length?"Equipe direta":"Equipe")}</li>`);
+    if(items.length) h += `<ul>${items.join("")}</ul>`;
+  }
+  return h + `</li>`;
+}
+function orphanHTML(){
+  const ids = ORPH.filter(k=>vis(k) && (!filter || (BIT[N[k].b]&filter)));
+  if(!ids.length) return "";
+  const depts=[...new Set(ids.map(k=>N[k].d))].join(", ");
+  return `<div class="orphan" id="orphan"><div class="card" role="note">
+      <span class="top"><span class="warn-ico" aria-hidden="true">!</span><span><span class="nm" style="display:block">Gestor não cadastrado</span><span class="cg" style="display:block">Registrado como “Operador de Franquias - O Boticário”, que não é um colaborador da base</span></span></span>
+      <span class="dp">${esc(depts)}</span>
+      <span class="ct"><span><b>${ids.length}</b> pessoas sem líder identificado</span></span></div>
+    <div class="stem"></div>${teamHTML(ids,"Equipe")}</div>`;
+}
+const canvas=document.getElementById("canvas"), vp=document.getElementById("vp");
+function render(){
+  canvas.innerHTML = `<ul class="tree">${nodeHTML(ROOT)}</ul>`;
+  canvas.style.zoom = zoom;
+}
+canvas.addEventListener("click",e=>{
+  if(moved) return;
+  const c=e.target.closest(".card[data-i]"); if(!c) return;
+  const i=+c.dataset.i; if(!isMgr(i)) return;
+  const before=c.getBoundingClientRect();
+  open.has(i)?open.delete(i):open.add(i);
+  render();
+  const after=document.querySelector(`.card[data-i="${i}"]`);
+  if(after){ const r=after.getBoundingClientRect(); vp.scrollLeft+=r.left-before.left; vp.scrollTop+=r.top-before.top; after.focus({preventScroll:true}); }
+});
+
+/* ---------- expansion presets ---------- */
+const ME = N.findIndex(nd=>nd.me);
+const homeCard = () => (GALHO && ME>=0 && document.querySelector(`.card[data-i="${ME}"]`)) || document.querySelector(".card.root") || document.querySelector(".card");
+function setInitial(){
+  open.clear(); open.add(ROOT);
+  if(GALHO && ME>=0){ let q=ME; while(q!==undefined){ open.add(q); q=parent[q]; } N[ME].k.forEach(k=>{ if(N[k].k.some(isMgr)) open.add(k); }); return; }
+  N[ROOT].k.forEach(k=>{ if(N[k].k.some(isMgr)) open.add(k); });
+}
+function setLeadership(){ open.clear(); N.forEach(nd=>{ if(nd.k.some(isMgr)) open.add(nd.i); }); }
+function setAll(){ open.clear(); N.forEach(nd=>{ if(isMgr(nd.i)) open.add(nd.i); }); }
+document.getElementById("bLead").onclick=()=>{ setLeadership(); render(); fit(); centerOn(homeCard(), GALHO); };
+document.getElementById("bAll").onclick=()=>{ setAll(); render(); setZoom(.7); centerOn(homeCard(), GALHO); };
+document.getElementById("bReset").onclick=()=>{ filter=0; hl=0; renderChips(); renderHl(); setInitial(); render(); fit(); centerOn(homeCard(), GALHO); };
+
+/* ---------- zoom & pan ---------- */
+function setZoom(z){ zoom=Math.min(1.4,Math.max(.3,Math.round(z*100)/100)); canvas.style.zoom=zoom; document.getElementById("zVal").textContent=Math.round(zoom*100)+"%"; }
+function fit(){
+  canvas.style.zoom=1; const w=canvas.scrollWidth;
+  setZoom(Math.min(1,Math.max(.6,(vp.clientWidth-8)/w)));
+}
+function centerOn(el,vertical){
+  if(!el) return;
+  const r=el.getBoundingClientRect(), v=vp.getBoundingClientRect();
+  vp.scrollLeft += (r.left+r.width/2)-(v.left+v.width/2);
+  vp.scrollTop = vertical ? vp.scrollTop + (r.top+r.height/2)-(v.top+v.height/2) : 0;
+}
+document.getElementById("zIn").onclick=()=>{ const c=keepCenter(); setZoom(zoom+.1); c(); };
+document.getElementById("zOut").onclick=()=>{ const c=keepCenter(); setZoom(zoom-.1); c(); };
+document.getElementById("zFit").onclick=()=>{ fit(); centerOn(homeCard(), GALHO); };
+function keepCenter(){ const z0=zoom, cx=(vp.scrollLeft+vp.clientWidth/2)/z0, cy=(vp.scrollTop+vp.clientHeight/2)/z0;
+  return ()=>{ vp.scrollLeft=cx*zoom-vp.clientWidth/2; vp.scrollTop=cy*zoom-vp.clientHeight/2; }; }
+let drag=null, moved=false;
+vp.addEventListener("pointerdown",e=>{
+  if(e.pointerType!=="mouse"||e.button!==0) return;
+  moved=false; drag={x:e.clientX,y:e.clientY,l:vp.scrollLeft,t:vp.scrollTop};
+});
+window.addEventListener("pointermove",e=>{
+  if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(!moved && Math.hypot(dx,dy)<5) return;
+  moved=true; vp.classList.add("drag"); vp.scrollLeft=drag.l-dx; vp.scrollTop=drag.t-dy;
+});
+window.addEventListener("pointerup",()=>{ drag=null; vp.classList.remove("drag"); setTimeout(()=>moved=false,0); });
+
+/* ---------- search ---------- */
+const q=document.getElementById("q"), res=document.getElementById("results");
+const IDX = N.map(nd=>norm(`${nd.n} ${nd.c} ${nd.d} ${nd.u} ${TAGS.filter(tg=>nd.t&tg.bit).map(tg=>tg.label).join(" ")}`));
+let hits=[], sel=0;
+function showResults(){
+  const t=norm(q.value.trim());
+  if(t.length<2){ res.hidden=true; return; }
+  const words=t.split(/\s+/);
+  hits = N.filter(nd=>!nd.x && words.every(w=>IDX[nd.i].includes(w)))
+          .sort((a,b)=>(norm(a.n).startsWith(words[0])?0:1)-(norm(b.n).startsWith(words[0])?0:1) || a.s-b.s || total[b.i]-total[a.i])
+          .slice(0,10);
+  sel=0;
+  res.innerHTML = hits.length ? hits.map((nd,j)=>`<button type="button" data-i="${nd.i}" class="${j===0?"on":""}"><span class="r1">${esc(nd.n)}${nd.s?`<span class="pill-off">Desativado</span>`:""}${badges(nd.t)}</span><span class="r2">${esc(nd.c)} · ${esc(nd.d)}</span></button>`).join("")
+                              : `<div class="none">Ninguém encontrado com “${esc(q.value.trim())}”.</div>`;
+  res.hidden=false;
+}
+q.addEventListener("input",showResults);
+q.addEventListener("keydown",e=>{
+  if(res.hidden||!hits.length) return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); sel=(sel+(e.key==="ArrowDown"?1:-1)+hits.length)%hits.length;
+    [...res.querySelectorAll("button")].forEach((b,j)=>b.classList.toggle("on",j===sel)); }
+  if(e.key==="Enter"){ e.preventDefault(); focusNode(hits[sel].i); }
+  if(e.key==="Escape"){ res.hidden=true; }
+});
+res.addEventListener("click",e=>{ const b=e.target.closest("button[data-i]"); if(b) focusNode(+b.dataset.i); });
+document.addEventListener("click",e=>{ if(!e.target.closest(".search")) res.hidden=true; });
+
+function focusNode(i){
+  if(N[i].s && !showOff){ showOff=true; document.getElementById("showOff").checked=true; }
+  res.hidden=true; q.blur();
+  if(filter && !(BIT[N[i].b]&filter) && !(mask[i]&filter)){ filter=0; renderChips(); }
+  if(hl && !hlIn(i) && !(parent[i]!==undefined && !isMgr(i) && hlIn(parent[i]))){ hl=0; renderHl(); }
+  let p=parent[i]; while(p!==undefined){ open.add(p); p=parent[p]; }
+  render();
+  if(zoom<.7) setZoom(.85);
+  const el = document.querySelector(`.card[data-i="${i}"]`) || document.querySelector(`.row[data-i="${i}"]`);
+  if(!el) return;
+  vp.scrollIntoView({block:"nearest",behavior:"smooth"});
+  requestAnimationFrame(()=>{ centerOn(el,true); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); });
+}
+
+/* ---------- department table ---------- */
+const byName={}; N.forEach(nd=>byName[nd.n]=nd.i);
+(function(){
+  DATA.depts.forEach(d=>{ if(d.d==="Marketing" && GHOST>=0){ d.l=[N[GHOST].n]; d.x="ghost"; } if(d.d==="Auditoria") d.x=""; });
+  const groups={}; DATA.depts.forEach(d=>(groups[d.b]=groups[d.b]||[]).push(d));
+  let h=`<thead><tr><th>Departamento</th><th class="num">Ativos</th><th class="num">Desativ.</th><th>Responsável</th><th>Headcount</th></tr></thead><tbody>`;
+  BORDER.forEach(b=>{
+    const g=groups[b]; if(!g) return;
+    const sum=g.reduce((s,d)=>s+d.hc,0), sumOff=g.reduce((s,d)=>s+d.dz,0);
+    h+=`<tr class="grp"><td colspan="5"><span class="dot b-${b}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px"></span>${BIZ[b]}<span class="n">${g.length} dep. · ${fmt(sum)} ativos · ${fmt(sumOff)} desativados</span></td></tr>`;
+    g.sort((a,b)=>b.hc-a.hc||a.d.localeCompare(b.d,"pt-BR")).forEach(d=>{
+      const leads = d.l.length ? d.l.map(n=>`<button type="button" class="lk" data-n="${esc(n)}">${esc(n)}</button>`).join(", ") : "";
+      const tag = d.x==="ghost" ? `<span class="tag warn">usuário fantasma</span>` : d.x==="sem" ? `<span class="tag warn">sem gestor cadastrado</span>` : d.x==="externo" ? `<span class="tag">gestor em outra área</span>` : "";
+      h+=`<tr><td>${esc(d.d)}</td><td class="num">${d.hc}</td><td class="num${d.dz?" off":""}">${d.dz||"–"}</td><td>${leads}${tag}</td><td>${TAGS.map((tg,j)=>d.tc[j]?`<span class="tg" style="${tagVar(tg.bit)};margin:0 4px 2px 0" title="${tg.label}">${tg.curto} ${d.tc[j]}</span>`:"").join("")}</td></tr>`;
+    });
+  });
+  const t=document.getElementById("deptTable"); t.innerHTML=h+`</tbody>`;
+  t.addEventListener("click",e=>{ const b=e.target.closest(".lk"); if(b&&byName[b.dataset.n]!==undefined) focusNode(byName[b.dataset.n]); });
+})();
+
+/* ---------- notes ---------- */
+const L = n => byName[n]!==undefined ? `<button type="button" class="lk" data-n="${esc(n)}">${esc(n)}</button>` : esc(n);
+const NOTES = [
+  ["h","Confirmado pelo RH"],
+  GHOST>=0 && ["ok",`<strong>Marketing.</strong> O gestor registrado, ${L(N[GHOST].n)}, é um usuário fantasma sem pessoa ativa. Ele fica abaixo de ${L("Leonardo Sobral")}, com as ${N[GHOST].k.length} pessoas da área.`],
+  ["ok",`<strong>Hering Rio Sul.</strong> Um é o Gerente da Loja e os demais são Gerentes Trainee, embora no Feedz todos constem como Gerente de Loja Hering. A estrutura foi mantida.`],
+  ["ok",`<strong>Logística e Auditoria.</strong> ${L("Bruno Guimarães Batista")} é Gerente de Logística e Auditoria. No Feedz o cargo consta só como Gerente de Logística; o organograma mostra o cargo completo.`],
+  ["ok",`<strong>Venda Direta.</strong> As lideranças que dividem a mesma unidade (VD Alcântara, VD Madureira, VD Partage e VD Sorrento Centro) têm atuações diferentes na operação.`],
+  ["h","Ainda em aberto"],
+  ["",`<strong>Coordenador liderando coordenadores.</strong> Na Logística, ${L("Fabricio Paulino De Oliveira")} e ${L("Jose Mauricio Claudino Machado")} respondem a ${L("Caio Cesar Magalhães Dos Santos")}, com o mesmo cargo.`],
+  ["",`<strong>Lojas O Boticário sob a supervisão de VD.</strong> As gerentes de Aimorés (${L("Yara Corrêa Dias")}) e Além Paraíba (${L("Vanessa Regazio Gabry")}) respondem ao Supervisor Regional VD, e não a um Supervisor de Loja.`],
+  ["",`<strong>Inteligência Comercial.</strong> A área está dividida entre ${L("Bruno Guimarães Batista")} (1 pessoa) e o Coordenador de TI, ${L("Bruno Muniz Carvalho De Sousa")} (5 pessoas).`],
+  ["w",`<strong>Compras - Hering e Compras - Levis.</strong> Não têm nenhum ativo, só 1 desativado cada, ligados a ${L("Lucas Favaretto")}.`],
+].filter(Boolean);
+const notesEl=document.getElementById("notes");
+if(GALHO){ notesEl.hidden = true; const sec = notesEl.closest(".sec"); sec.querySelector("h2").textContent = "Sobre esta visão"; sec.querySelector(".sub").hidden = true; }
+notesEl.innerHTML = NOTES.map(([s,t])=> s==="h" ? `<li style="display:block"><span class="gh">${t}</span></li>` : `<li><span class="sev ${s}"></span><span>${t}</span></li>`).join("");
+notesEl.addEventListener("click",e=>{ const b=e.target.closest(".lk"); if(b&&byName[b.dataset.n]!==undefined) focusNode(byName[b.dataset.n]); });
+document.getElementById("foot").textContent = (GALHO ? `Você vê a sua linha de liderança (só nome, cargo e área) e a sua equipe. A estrutura completa da empresa fica liberada para RH e Administração. ` : "") + `Base: ${fmt(S.total)} registros da planilha de Colaboradores (Feedz)${GALHO ? " na sua equipe" : " visíveis no seu acesso"}, ${fmt(S.ativos)} ativos e ${fmt(S.desativados)} desativados. Os desativados aparecem riscados, na equipe do último gestor registrado, e podem ser ocultados pelo botão “Mostrar desativados”. Os marcadores PCD, Jovem Aprendiz, INSS e Maternidade vêm da coluna Grupos do Feedz (os mesmos da tela Headcount) e, junto com a experiência (até 90 dias da admissão), valem só para ativos; afastados aparecem em itálico.`;
+
+document.getElementById("showOff").addEventListener("change",e=>{ showOff=e.target.checked; render(); });
+/* ---------- boot ---------- */
+renderChips(); renderHl(); setInitial(); render();
+requestAnimationFrame(()=>{ fit(); centerOn(homeCard(), GALHO); });
+}
+</script>
+
+</body>
+</html>
