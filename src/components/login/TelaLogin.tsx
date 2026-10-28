@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { MENSAGENS_LOGIN, MENSAGEM_PADRAO } from "@/components/login/mensagens";
 
 // Mesma tela de login do hub antigo (legado/index.html, #login-screen).
 export function TelaLogin() {
-  const router = useRouter();
   const [entrando, setEntrando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -26,8 +24,9 @@ export function TelaLogin() {
         setErro(MENSAGENS_LOGIN[r?.error ?? ""] ?? MENSAGEM_PADRAO);
         return;
       }
-      router.replace("/inicio");
-      router.refresh();
+      // /hub é a página das telas antigas (route handler), não uma rota React.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- /hub é route handler (HTML do hub antigo), precisa de carga completa
+      window.location.assign("/hub?entrou=1");
     } catch {
       setErro(MENSAGEM_PADRAO);
     } finally {

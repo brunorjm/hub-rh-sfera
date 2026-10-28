@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { trocarSenha } from "@/server/actions/senha";
 import { BotaoSair } from "@/components/login/BotaoSair";
 
 export function TelaTrocarSenha({ obrigatoria }: { obrigatoria: boolean }) {
-  const router = useRouter();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -25,8 +23,8 @@ export function TelaTrocarSenha({ obrigatoria }: { obrigatoria: boolean }) {
         setErro(r.erro);
         return;
       }
-      router.replace("/inicio");
-      router.refresh();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- /hub é route handler (HTML do hub antigo), precisa de carga completa
+      window.location.assign("/hub");
     } catch {
       setErro("Não foi possível trocar a senha. Tente novamente.");
     } finally {

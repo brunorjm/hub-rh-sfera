@@ -7,7 +7,9 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([".next/**", "out/**", "next-env.d.ts", "node_modules/**", "coverage/**",
-    "playwright-report/**", "test-results/**", "docs/**", "_local/**", "legado/**"]),
+    "playwright-report/**", "test-results/**", "docs/**", "_local/**", "legado/**",
+    // Telas antigas reaproveitadas (sem lint, como no hub antigo) e bibliotecas de terceiros.
+    "public/legado-ui/**", "public/vendor/**"]),
   {
     name: "hub/arquitetura",
     rules: {

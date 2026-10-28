@@ -1,0 +1,15 @@
+(async function(){
+  'use strict';
+  const root=document.getElementById('nps-root'),token=new URLSearchParams(location.hash.slice(1)).get('token');
+  const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const message=(title,text)=>{root.innerHTML='<h1>'+title+'</h1><p>'+escape(text)+'</p>';};
+  if(!/^[0-9a-f]{64}$/.test(token||'')){message('Link incompleto','Peça ao RH o link individual do seu encontro.');return;}
+  async function request(answer=null,message=null){const response=await fetch(HUB_CONFIG.SUPABASE_URL+'/rest/v1/rpc/conexao_nps_public',{method:'POST',headers:{apikey:HUB_CONFIG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({token,answer,message})});const data=await response.json();if(!response.ok)throw Error(data.message||'Link indisponível.');return {...data,status:data.answered?'answered':'pending'};}
+  try{
+    const data=await request();
+    if(data.status==='answered'){message('Resposta já registrada','Obrigado por compartilhar sua experiência. Este link já foi utilizado.');return;}
+    if(data.status==='expired'){message('Link expirado','Entre em contato com o RH para avaliar um novo prazo.');return;}
+    root.innerHTML=`<div class="eyebrow">CONEXÃO RH · ${data.milestone} DIAS</div><h1>Como foi seu encontro?</h1><p>Encontro de ${data.date.split('-').reverse().join('/')}. Sua opinião nos ajuda a melhorar a jornada.</p><p class="muted">A resposta será vinculada a este encontro e poderá ser consultada pelo RH.</p><form><fieldset><legend>De 0 a 10, o quanto você recomendaria este encontro do Conexão RH a um colega?</legend><div class="scale">${Array.from({length:11},(_,n)=>`<label><input type="radio" name="score" value="${n}" required aria-label="Nota ${n}"><span>${n}</span></label>`).join('')}</div><div class="ends"><span>0 · Não recomendaria</span><span>10 · Recomendaria muito</span></div></fieldset><label>O que podemos manter ou melhorar? <small>(opcional)</small><textarea name="comment" rows="4" maxlength="2000" placeholder="Conte como foi o encontro para você…"></textarea></label><p role="alert" class="error"></p><button type="submit">Enviar minha avaliação</button></form>`;
+    root.querySelector('form').onsubmit=async event=>{event.preventDefault();const form=event.target,button=form.querySelector('button'),values=new FormData(form);if(!values.has('score'))return;button.disabled=true;form.querySelector('.error').textContent='';try{await request(Number(values.get('score')),values.get('comment'));root.innerHTML='<span class="success">Resposta registrada</span><h1>Obrigado pela sua opinião!</h1><p>Seu retorno vai ajudar a melhorar os próximos encontros do Conexão RH.</p>';if(typeof BroadcastChannel==='function'){const channel=new BroadcastChannel('sfera-conexao-nps');channel.postMessage({updated:true});channel.close();}}catch(error){form.querySelector('.error').textContent=error.message;button.disabled=false;}};
+  }catch(error){message('Link indisponível',error.message||'Não foi possível carregar este encontro.');}
+})();

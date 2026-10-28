@@ -1,7 +1,7 @@
 // Cria (ou recria) uma conta de TESTE no banco LOCAL, para experimentar o login
 // sem usar a senha de ninguém. Recusa qualquer banco que não seja localhost.
 //
-// Uso: npx tsx scripts/criar-conta-teste.ts
+// Uso: npx tsx scripts/criar-conta-teste.ts [--sem-troca]
 // Lê DEV_EMAIL_TESTE e DEV_SENHA_TESTE do .env (gere a senha; nunca use uma real).
 import "dotenv/config";
 import bcrypt from "bcryptjs";
@@ -24,7 +24,7 @@ async function main() {
     prisma.profiles.deleteMany({ where: { id: ID } }),
     prisma.usuarios.deleteMany({ where: { id: ID } }),
     prisma.usuarios.create({
-      data: { id: ID, email, senha_hash: await bcrypt.hash(senha!, 10), trocar_senha: true },
+      data: { id: ID, email, senha_hash: await bcrypt.hash(senha!, 10), trocar_senha: !process.argv.includes("--sem-troca") },
     }),
     prisma.profiles.create({
       data: { id: ID, email, nome: "Conta de Teste Local", perfil: "rh", status: "ativo", permissoes: presetPermissoes("rh") },
