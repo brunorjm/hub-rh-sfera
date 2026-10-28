@@ -9,6 +9,8 @@ const PAGINAS_PUBLICAS: [string, string][] = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Não anuncia a tecnologia no cabeçalho X-Powered-By.
+  poweredByHeader: false,
   productionBrowserSourceMaps: false,
   // Upload de planilha (Administração → Upload) manda as linhas já lidas no navegador;
   // a maior planilha de hoje (colaboradores) passa de 1 MB, o limite padrão.

@@ -70,6 +70,7 @@ do $$
 declare r text;
 begin
   foreach r in array array['anon', 'authenticated', 'service_role'] loop
+    continue when not exists (select 1 from pg_roles where rolname = r);
     execute format('revoke all on all tables in schema public from %I', r);
     execute format('revoke all on all sequences in schema public from %I', r);
     execute format('revoke all on all functions in schema public from %I', r);

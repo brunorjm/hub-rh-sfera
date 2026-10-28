@@ -23,3 +23,9 @@ export function origemPermitida(req: Request): boolean {
   const site = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
   return site !== "cross-site" && site !== "same-site";
 }
+
+// Endereço público para redirecionar. No container, req.url é o endereço interno
+// (http://0.0.0.0:3000); atrás do proxy o navegador precisa do NEXTAUTH_URL.
+export function urlPublica(caminho: string, req: Request): URL {
+  return new URL(caminho, origemDe(process.env.NEXTAUTH_URL) ?? req.url);
+}

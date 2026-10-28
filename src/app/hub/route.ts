@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { lerCorpo } from "@/lib/corpo";
-import { origemPermitida } from "@/lib/origem";
+import { origemPermitida, urlPublica } from "@/lib/origem";
 import { usuarioAtual, type UsuarioHub } from "@/lib/sessao";
 import { registrarAcesso } from "@/lib/login";
 import { PAGINA_HUB } from "@/server/hub/pagina-hub";
@@ -34,8 +34,8 @@ const formatoTela = (u: UsuarioHub) => ({
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const u = await usuarioAtual();
-  if (!u) return NextResponse.redirect(new URL("/login", url));
-  if (u.trocarSenha) return NextResponse.redirect(new URL("/trocar-senha", url));
+  if (!u) return NextResponse.redirect(urlPublica("/login", req));
+  if (u.trocarSenha) return NextResponse.redirect(urlPublica("/trocar-senha", req));
 
   // Log de Acessos: "login" já foi gravado no login; recarregar a página é "sessao", como no hub antigo.
   // Entrar/sair do "Visualizar como" recarrega a página: não é uma volta ao Hub.

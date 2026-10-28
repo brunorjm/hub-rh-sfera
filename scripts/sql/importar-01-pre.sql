@@ -4,11 +4,21 @@
 -- gen_random_bytes, pgp_sym_*) e auth.uid() no formato novo. Tudo que é só do
 -- Supabase é removido no passo 2.
 
+-- Num servidor da TI o usuário do hub pode não ter CREATEROLE: aí os papéis não
+-- são criados e só as 8 policies que os citam falham no restore — sem dano, o
+-- passo 2 apaga todas as policies e a migration 1_rls_original as recria.
 do $$
+declare r text;
 begin
-  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin; end if;
+  foreach r in array array['anon', 'authenticated', 'service_role'] loop
+    if not exists (select 1 from pg_roles where rolname = r) then
+      begin
+        execute format('create role %I nologin', r);
+      exception when insufficient_privilege then
+        raise notice 'Sem permissão para criar o papel % (ok: ver comentário acima).', r;
+      end;
+    end if;
+  end loop;
 end $$;
 
 create schema if not exists extensions;

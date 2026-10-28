@@ -94,3 +94,16 @@ describe("resumoErro (log sem valores)", () => {
     expect(resumoErro(new Error('invalid input syntax for type uuid: "segredo-123"'))).not.toMatch(/segredo/);
   });
 });
+
+describe("urlPublica", () => {
+  const original = process.env.NEXTAUTH_URL;
+  afterEach(() => { process.env.NEXTAUTH_URL = original; });
+
+  it("redireciona para o endereço público, não para o interno do container", async () => {
+    const { urlPublica } = await import("@/lib/origem");
+    process.env.NEXTAUTH_URL = "https://hub-homolog.exemplo.test";
+    expect(urlPublica("/login", new Request("http://0.0.0.0:3000/hub")).href).toBe("https://hub-homolog.exemplo.test/login");
+    delete process.env.NEXTAUTH_URL;
+    expect(urlPublica("/login", new Request("http://localhost:3006/hub")).href).toBe("http://localhost:3006/login");
+  });
+});
