@@ -84,34 +84,31 @@
     return all;
   }
 
-  function isAuthGlitch(msg) {
-    return /row-level security|jwt|permission denied/i.test(msg || '');
+  // Upload atômico (src/server/hub/admin.ts): os lotes vão para uma área de
+  // preparo no servidor e só a última chamada troca a tabela, numa transação
+  // única (apaga, insere tudo e grava o upload_log). Se cair no meio, os dados
+  // antigos ficam — antes era admin_truncate e insert em lotes, e uma queda no
+  // meio deixava a tabela vazia.
+  function novoLote() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    const h = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-a' + h.slice(17, 20) + '-' + h.slice(20, 32);
   }
 
-  async function insertBatch(table, batch) {
-    let { error } = await sb.from(table).insert(batch);
-    if (error && isAuthGlitch(error.message)) {
-      // Sessão pode ter expirado/renovado no meio de um upload longo —
-      // garante um token válido e tenta essa mesma leva mais uma vez antes
-      // de desistir.
-      await sb.auth.refreshSession().catch(() => {});
-      await new Promise(r => setTimeout(r, 500));
-      ({ error } = await sb.from(table).insert(batch));
-    }
-    return error;
-  }
-
-  async function replaceTable(table, rows, onProgress) {
-    await sb.auth.refreshSession().catch(() => {});
-    // TRUNCATE via função no banco em vez de DELETE linha a linha — evita
-    // estourar o tempo limite em tabelas grandes (ex.: Twygo, 60mil+ linhas).
-    const { error: delErr } = await sb.rpc('admin_truncate', { target: table });
-    if (delErr) throw new Error('Erro ao limpar dados antigos: ' + delErr.message);
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE);
-      const error = await insertBatch(table, batch);
-      if (error) throw new Error('Erro ao gravar dados (linha ' + i + '): ' + error.message);
-      if (onProgress) onProgress(Math.min(i + BATCH_SIZE, rows.length), rows.length);
+  async function replaceTable(table, rows, onProgress, arquivo) {
+    const lote = novoLote();
+    try {
+      for (let i = 0, ordem = 0; i < rows.length; i += BATCH_SIZE, ordem++) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        try { await HUB_API.chamar('admin.uploadLote', { lote, tabela: table, ordem, linhas: batch }); }
+        catch (error) { throw new Error('Erro ao gravar dados (linha ' + i + '): ' + error.message + ' Os dados anteriores foram mantidos.'); }
+        if (onProgress) onProgress(Math.min(i + BATCH_SIZE, rows.length), rows.length);
+      }
+      try { await HUB_API.chamar('admin.uploadConcluir', { lote, tabela: table, total: rows.length, arquivo: arquivo || null }); }
+      catch (error) { throw new Error('Erro ao substituir os dados: ' + error.message + ' Os dados anteriores foram mantidos.'); }
+    } catch (err) {
+      HUB_API.chamar('admin.uploadDescartar', { lote }).catch(() => {});
+      throw err;
     }
     // Tabelas fora de TABLES (ex.: Avaliação da Experiência, carregada sob
     // demanda por dal-experiencia.js) não entram em HUB_DATA — senão
@@ -124,19 +121,21 @@
 
   // Log de uploads (tabela upload_log — ver supabase-upload-log.sql). Falhas aqui
   // nunca devem quebrar o upload em si, então retornam vazio/silenciam.
+  // Quem enviou vem da sessão, no servidor. O replaceTable já grava o log de sucesso.
   async function logUpload(entry) {
-    const u = window.HUB_USER || {};
-    const { error } = await sb.from('upload_log').insert({
-      tabela: entry.tabela, arquivo: entry.arquivo, linhas: entry.linhas,
-      status: entry.status, erro: entry.erro || null,
-      usuario_id: u.id || null, usuario_nome: u.nome || u.email || null
-    });
-    return error || null;
+    try {
+      await HUB_API.chamar('admin.registrarUpload', {
+        tabela: entry.tabela, arquivo: entry.arquivo || null, linhas: entry.linhas == null ? null : entry.linhas,
+        status: entry.status, erro: entry.erro || null
+      });
+      return null;
+    } catch (error) {
+      return error;
+    }
   }
 
   async function listUploadLog(limit) {
-    const { data, error } = await sb.from('upload_log').select('*').order('created_at', { ascending: false }).limit(limit || 300);
-    if (error) throw error;
+    const data = await HUB_API.chamar('admin.listarUploads', { limite: limit || 300 });
     return data || [];
   }
 
@@ -215,62 +214,33 @@
   }
 
   async function listProfiles() {
-    const { data, error } = await sb.from('profiles').select('*').order('nome');
-    if (error) throw error;
-    return data;
+    return HUB_API.chamar('admin.listarPerfis', {});
   }
 
+  // Edição de um cadastro existente. Criar login é admin.criarAcesso (no
+  // servidor: login + perfil numa transação). deleteProfile não existe mais:
+  // nenhuma tela excluía perfil (o acesso é inativado ou desligado).
   async function upsertProfile(profile) {
-    const { error } = await sb.from('profiles').upsert(profile);
-    if (error) throw error;
-  }
-
-  async function deleteProfile(id) {
-    const { error } = await sb.from('profiles').delete().eq('id', id);
-    if (error) throw error;
+    await HUB_API.chamar('admin.salvarPerfil', profile);
   }
 
   // Muda o status de acesso (ativo/inativo/desligado) sem apagar o perfil — ver
   // supabase-usuarios-inativar.sql. Nada é excluído: só o status e quem/quando mudou.
+  // Quem mudou e quando vêm da sessão, no servidor; inativar/desligar derruba as sessões da pessoa.
   async function setProfileStatus(id, status) {
-    const u = window.HUB_USER || {};
-    const patch = status === 'ativo'
-      ? { status, status_em: null, status_por: null }
-      : { status, status_em: new Date().toISOString(), status_por: u.nome || u.email || null };
-    const { error } = await sb.from('profiles').update(patch).eq('id', id);
-    if (error) throw error;
+    await HUB_API.chamar('admin.alterarStatus', { id, status });
   }
 
   // Log de auditoria do "Visualizar como" (tabela viewas_log — ver
-  // supabase-viewas-log.sql). Falhas aqui nunca devem impedir o uso do modo
-  // de visualização em si — quem chama trata o erro como aviso, não bloqueio.
-  async function logViewAsStart(alvo, ator) {
-    // "ator" (quem está usando "Visualizar como") é passado explícito, não lido
-    // de window.HUB_USER — na hora dessa chamada ele já pode ter sido trocado
-    // pelo perfil simulado.
-    const u = ator || window.HUB_USER || {};
-    const { data, error } = await sb.from('viewas_log').insert({
-      usuario_id: u.id || null, usuario_nome: u.nome || u.email || null,
-      alvo_profile_id: alvo.id || null, alvo_nome: alvo.nome, alvo_email: alvo.email, alvo_perfil: alvo.perfil
-    }).select('id').single();
-    if (error) throw error;
-    return data.id;
-  }
-
-  async function logViewAsEnd(id) {
-    if (!id) return;
-    const { error } = await sb.from('viewas_log').update({ encerrado_em: new Date().toISOString() }).eq('id', id);
-    if (error) throw error;
-  }
-
+  // supabase-viewas-log.sql): agora gravado pelo servidor ao iniciar
+  // (admin.verComoIniciar) e fechado ao sair (POST /hub) — ver view-as.js.
   async function listViewAsLog(limit) {
-    const { data, error } = await sb.from('viewas_log').select('*').order('iniciado_em', { ascending: false }).limit(limit || 300);
-    if (error) throw error;
+    const data = await HUB_API.chamar('admin.listarVerComo', { limite: limit || 300 });
     return data || [];
   }
 
   window.HUB_DAL = {
-    TABLES, loadAll, replaceTable, salvarUnibe, salvarAcademia, salvarTurmaHub, justificarTurmaHub, excluirTurmaHub, gestaoTurmaHub, mesesFechadosTurmas, historicoTurma, recarregarTurmas, logUpload, listUploadLog, listProfiles, upsertProfile, deleteProfile, setProfileStatus,
-    logViewAsStart, logViewAsEnd, listViewAsLog
+    TABLES, loadAll, replaceTable, salvarUnibe, salvarAcademia, salvarTurmaHub, justificarTurmaHub, excluirTurmaHub, gestaoTurmaHub, mesesFechadosTurmas, historicoTurma, recarregarTurmas, logUpload, listUploadLog, listProfiles, upsertProfile, setProfileStatus,
+    listViewAsLog
   };
 })();

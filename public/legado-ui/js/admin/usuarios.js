@@ -148,6 +148,36 @@
     });
   }
 
+  // Senha provisória digitada duas vezes (campo de senha, nunca em texto aberto).
+  function pedirSenhaProvisoria(nome) {
+    return new Promise(resolve => {
+      const ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px';
+      ov.innerHTML = `<div role="dialog" aria-modal="true" style="background:var(--card);border-radius:var(--radius);max-width:420px;width:100%;padding:22px">
+        <h3 style="font-size:16px;margin-bottom:10px">Redefinir senha</h3>
+        <p style="font-size:13px;line-height:1.5;margin-bottom:12px">Senha provisória de <b>${U.escapeHtml(nome)}</b>. No próximo acesso a pessoa vai precisar trocá-la, e as sessões abertas dela são encerradas.</p>
+        <input type="password" id="rs-1" autocomplete="new-password" placeholder="mínimo 8 caracteres" style="width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:8px">
+        <input type="password" id="rs-2" autocomplete="new-password" placeholder="repita a senha" style="width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" class="btn btn-outline btn-sm" id="rs-cancel">Cancelar</button>
+          <button type="button" class="btn btn-warn btn-sm" id="rs-ok" disabled>Definir senha</button>
+        </div></div>`;
+      document.body.appendChild(ov);
+      const s1 = ov.querySelector('#rs-1'), s2 = ov.querySelector('#rs-2'), ok = ov.querySelector('#rs-ok');
+      const done = v => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = e => { if (e.key === 'Escape') done(null); };
+      document.addEventListener('keydown', onKey);
+      const check = () => { ok.disabled = s1.value.length < 8 || s1.value !== s2.value; };
+      s1.addEventListener('input', check);
+      s2.addEventListener('input', check);
+      s2.addEventListener('keydown', e => { if (e.key === 'Enter' && !ok.disabled) done(s1.value); });
+      ov.querySelector('#rs-cancel').addEventListener('click', () => done(null));
+      ok.addEventListener('click', () => done(s1.value));
+      ov.addEventListener('click', e => { if (e.target === ov) done(null); });
+      s1.focus();
+    });
+  }
+
   function renderAccessList(el, profiles) {
     if (!profiles.length) { el.innerHTML = '<div class="empty"><p>Nenhuma conta cadastrada além da sua.</p></div>'; return; }
     // Ativos primeiro, depois inativos, depois desligados (ordem por nome preservada em cada grupo).
@@ -179,6 +209,7 @@
         <td class="acc-actions">
           ${st === 'desligado' ? '<button class="btn btn-outline btn-sm" disabled title="Usuário desligado: só é possível visualizar. Reative para editar.">Editar</button>' : `<button class="btn btn-outline btn-sm" data-edit="${p.id}">Editar</button>`}
           ${st === 'ativo' && !isSelf ? `<button class="btn btn-outline btn-sm btn-icon" data-viewas="${p.id}" aria-label="Visualizar como esta conta" title="Visualizar como — ver o Hub como esta conta veria (menu, telas e, melhor esforço, dados recortados por unidade/departamento). Somente leitura.">&#128065;</button>` : ''}
+          ${st !== 'desligado' && !isSelf ? `<button class="btn btn-outline btn-sm" data-senha="${p.id}" title="Definir uma senha provisória (a pessoa troca no próximo acesso)">Senha</button>` : ''}
           ${st === 'ativo' ? `<button class="btn btn-warn btn-sm" data-status="${p.id}" data-to="inativo"${selfAttr}>Inativar</button>` : `<button class="btn btn-warn btn-sm" data-status="${p.id}" data-to="ativo"${selfAttr}>Reativar</button>`}
           ${st !== 'desligado' ? `<button class="btn btn-danger btn-sm" data-status="${p.id}" data-to="desligado"${selfAttr}>Desligar</button>` : ''}
         </td>
@@ -224,6 +255,22 @@
     el.querySelectorAll('[data-viewas]').forEach(b => b.addEventListener('click', () => {
       const p = profiles.find(x => x.id === b.dataset.viewas);
       window.HUB_VIEW_AS && window.HUB_VIEW_AS.enter(p);
+    }));
+    // Redefinir senha (antes só pelo painel do Supabase): senha provisória,
+    // troca obrigatória no próximo acesso; as sessões abertas da pessoa caem.
+    el.querySelectorAll('[data-senha]').forEach(b => b.addEventListener('click', async () => {
+      const p = profiles.find(x => x.id === b.dataset.senha);
+      const senha = await pedirSenhaProvisoria(p.nome);
+      if (!senha) return;
+      b.disabled = true;
+      try {
+        await HUB_API.chamar('admin.redefinirSenha', { id: p.id, senha });
+        alert('Senha provisória definida para ' + p.nome + '. No próximo acesso a pessoa vai precisar trocá-la.');
+      } catch (err) {
+        alert('Erro ao redefinir a senha: ' + err.message);
+      } finally {
+        b.disabled = false;
+      }
     }));
     el.querySelectorAll('[data-status]').forEach(b => b.addEventListener('click', async () => {
       const p = profiles.find(x => x.id === b.dataset.status);
@@ -323,7 +370,7 @@
         <div class="form-grid">
           <div class="field full"><label>Nome completo</label><input id="acc-nome" required value="${U.escapeHtml(p.nome)}"></div>
           <div class="field"><label>E-mail (login)</label><input id="acc-email" type="email" required value="${U.escapeHtml(p.email)}" ${isEdit ? 'disabled' : ''}></div>
-          ${isEdit ? '' : '<div class="field"><label>Senha provisória</label><input id="acc-senha" type="password" minlength="6" required placeholder="mínimo 6 caracteres"></div>'}
+          ${isEdit ? '' : '<div class="field"><label>Senha provisória</label><input id="acc-senha" type="password" minlength="8" required placeholder="mínimo 8 caracteres" autocomplete="new-password"></div>'}
           <div class="field full"><label>Colaborador no Feedz (para o organograma)</label>
             <input id="acc-colab" list="acc-colab-list" autocomplete="off" placeholder="Vazio = liga pelo e-mail do login. Digite o nome para buscar" value="${U.escapeHtml(colabAtual)}">
             <datalist id="acc-colab-list">${Array.from(colabOpts.byLabel.keys()).map(l => `<option value="${U.escapeHtml(l)}"></option>`).join('')}</datalist>
@@ -502,15 +549,11 @@
         editingProfile = null;
       } else {
         const senha = document.getElementById('acc-senha').value;
-        // O banco só aceita criar login para e-mail autorizado aqui
-        // (cadastro_autorizado — ver supabase-seguranca-fase1.sql).
-        const { error: autErr } = await sb.from('cadastro_autorizado').upsert({ email: email.trim().toLowerCase(), criado_em: new Date().toISOString() });
-        if (autErr) throw new Error('Não foi possível autorizar o e-mail: ' + autErr.message + (/cadastro_autorizado|schema cache/i.test(autErr.message) ? ' — rode supabase-seguranca-fase1.sql no Supabase.' : ''));
-        const iso = window.createIsolatedClient();
-        const { data, error } = await iso.auth.signUp({ email, password: senha });
-        if (error) throw (/database error saving new user/i.test(error.message || '') ? new Error('O banco recusou criar o login deste e-mail (cadastro não autorizado). Tente de novo; se continuar, confira se o e-mail está certo.') : error);
-        if (!data.user) throw new Error('Não foi possível criar o login (verifique se a confirmação de e-mail está desativada no Supabase — veja SETUP.md).');
-        await HUB_DAL.upsertProfile(Object.assign({ id: data.user.id, email, nome, perfil, unidades, departamentos, permissoes }, extra));
+        // O servidor cria o login (senha provisória, troca obrigatória no
+        // primeiro acesso) e o perfil numa transação só. O banco só aceita
+        // criar login para e-mail autorizado (cadastro_autorizado — ver
+        // supabase-seguranca-fase1.sql); a autorização é feita na mesma hora.
+        await HUB_API.chamar('admin.criarAcesso', Object.assign({ email, senha, nome, perfil, unidades, departamentos, permissoes }, extra));
       }
       render(document.getElementById('sec-adm-usuarios'));
     } catch (err) {

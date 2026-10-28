@@ -1079,6 +1079,23 @@ model upload_log {
   @@index([tabela, created_at(sort: Desc)], map: "upload_log_tabela_created_idx")
 }
 
+/// Área de preparo do Upload de Planilhas (migration 2_upload_preparo_cadastro; RLS por dono do lote).
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model upload_preparo {
+  id         BigInt   @id @default(autoincrement())
+  usuario_id String   @default(dbgenerated("auth.uid()")) @db.Uuid
+  lote       String   @db.Uuid
+  tabela     String
+  ordem      Int
+  colunas    String[]
+  linhas     Json
+  qtd        Int
+  criado_em  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([usuario_id, lote, ordem])
+  @@index([usuario_id, criado_em], map: "upload_preparo_usuario_criado_idx")
+}
+
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model usuarios {
   id           String    @id @db.Uuid

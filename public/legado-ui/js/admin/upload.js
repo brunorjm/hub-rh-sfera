@@ -299,7 +299,7 @@
         const rows = cfg.parse(wb);
         totalLinhas = rows.length;
         statusEl.textContent = `Gravando (${rows.length} linhas)...`;
-        await HUB_DAL.replaceTable(cfg.table, rows, (done, total) => { bar.style.width = (5 + (done / Math.max(total, 1)) * 90) + '%'; });
+        await HUB_DAL.replaceTable(cfg.table, rows, (done, total) => { bar.style.width = (5 + (done / Math.max(total, 1)) * 90) + '%'; }, file.name);
         statusEl.textContent = `${rows.length} linhas importadas.`;
       }
       bar.style.width = '100%';
@@ -311,7 +311,8 @@
       const cicloAve = window.HUB_EXPERIENCIA && HUB_EXPERIENCIA.cicloDaTabela(cfg.table);
       if (cicloAve) HUB_EXPERIENCIA.invalidar(cicloAve);
       if (window.HUB_BOLETIM) HUB_BOLETIM.invalidar();
-      await HUB_DAL.logUpload({ tabela: cfg.table, arquivo: file.name, linhas: totalLinhas, status: 'ok' });
+      // A troca da tabela (replaceTable) já grava o upload_log na mesma transação.
+      if (cfg.custom) await HUB_DAL.logUpload({ tabela: cfg.table, arquivo: file.name, linhas: totalLinhas, status: 'ok' });
       await HUB_RELOAD_DATA(false);
       loadLastUpdates();
     } catch (err) {

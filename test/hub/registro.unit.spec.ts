@@ -12,6 +12,10 @@ const SO_AUTENTICADO = new Set([
   // organograma_meu_galho() é concedida a authenticated e devolve só o galho
   // do próprio auth.uid() (no "Visualizar como", o da conta simulada).
   "desligamento.meuGalho",
+  // Log de Acessos: toda conta registra os módulos que abre (o registrar_acesso
+  // do Supabase era concedido a authenticated). A função grava só para o próprio
+  // auth.uid(), só o evento "modulo" e corta os textos; no "Visualizar como" é recusada (escrita).
+  "admin.registrarModulo",
 ]);
 
 describe("registro de operações do hub", () => {

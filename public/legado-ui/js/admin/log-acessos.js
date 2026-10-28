@@ -21,7 +21,9 @@
 
   function registrar(evento, modulo) {
     try {
-      if (!window.sb || !window.HUB_USER || !HUB_USER.id) return Promise.resolve();
+      if (!window.HUB_API || !window.HUB_USER || !HUB_USER.id) return Promise.resolve();
+      // Login, volta com sessão aberta e saída o servidor já grava; daqui só sai "modulo".
+      if (evento !== 'modulo') return Promise.resolve();
       // "Visualizar como" não registra nada — a sessão é do administrador e
       // ele já fica no histórico próprio do Visualizar como.
       if (window.HUB_VIEW_AS && HUB_VIEW_AS.isActive()) return Promise.resolve();
@@ -31,7 +33,7 @@
         ultimoModulo[modulo] = agora;
       }
       // No máximo 3 s de espera (o "Sair" aguarda o registro da saída).
-      const envio = Promise.resolve(sb.rpc('registrar_acesso', { p_evento: evento, p_modulo: modulo || null, p_dispositivo: dispositivo() }));
+      const envio = HUB_API.chamar('admin.registrarModulo', { modulo: modulo, dispositivo: dispositivo() });
       return Promise.race([envio, new Promise(r => setTimeout(r, 3000))]).then(() => {}, () => {});
     } catch (err) {
       return Promise.resolve();
@@ -59,10 +61,7 @@
     fim.setDate(fim.getDate() + 1);
     let todas = [];
     for (let from = 0; from < LIMITE; from += PAGE) {
-      const { data, error } = await sb.from('acesso_log').select('*')
-        .gte('criado_em', ini.toISOString()).lt('criado_em', fim.toISOString())
-        .order('criado_em', { ascending: false }).range(from, from + PAGE - 1);
-      if (error) throw error;
+      const data = await HUB_API.chamar('admin.lerAcessos', { inicio: ini.toISOString(), fim: fim.toISOString(), de: from, limite: PAGE });
       todas = todas.concat(data || []);
       if (!data || data.length < PAGE) break;
     }
