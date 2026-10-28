@@ -73,11 +73,11 @@ Depois disso:
 - Portar os 418 asserts para Jest.
 - **Pronto quando:** os 418 asserts portados passam e a paridade sobre os dados locais dá idêntico (A7).
 
-### A6. Layout e telas
-1. CSS atual em `src/styles`.
-2. Shell: menu filtrado pelo catálogo, barra de filtros e faixa do "Visualizar como".
-3. Componentes de gráfico sobre o Chart.js, com as opções do `ui-charts.js`.
-4. Telas, por módulo, cada uma com server action, recorte e permissão:
+### A6. Layout e telas (revisado em 28/10/2026: telas antigas reaproveitadas, spec §8)
+1. Migration `1_rls_original`: papel `hub_app`, grants e as 164 policies; `comUsuarioRls()`.
+2. `/api/hub/[operacao]` com a lista fechada de operações e o teste de permissão declarada.
+3. Página `/hub` com o HTML do `legado/index.html`, scripts em `public/legado-ui/` e bibliotecas em `public/vendor/`.
+4. Telas, por módulo, trocando o acesso a dados de cada `dal-*`/acesso direto por operações:
    1. Indicadores: headcount, organograma, rotatividade, desligamento, controle de desligamento, experiência, clima, engajamento, satisfação, boletim, feedbacks, 1:1, treinamentos e celebrações.
    2. Recrutamento: dashboard, vagas, candidatos, agenda, banco de talentos, aprovações, histórico, transferência e parecer.
    3. T&D: onboarding, visita em loja e turmas.

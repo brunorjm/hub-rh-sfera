@@ -122,14 +122,31 @@ legado/                          app atual (referência e testes de paridade); s
 - **Log de acessos:** cada rota aberta grava no `acesso_log`.
 
 ## 8. Telas, gráficos e upload
-- **Layout igual ao de hoje.** Menu lateral, barra de filtros (unidade, departamento, gestor e colaborador) e as 25 telas, com o mesmo CSS.
-- **Gráficos:** os componentes React envolvem o Chart.js com as **mesmas opções** do `js/ui-charts.js` (kpi, card, barChart, lineChart, comboChart, rankingTable e insights).
-- **Cálculos:**
-  - `metrics-*` e `parsers-*` são portados para TS **sem mudar a lógica**.
-  - Os 418 asserts atuais (5 suítes) são portados para Jest e precisam passar iguais.
-- **Carga de dados (mesmo modelo de hoje, mas recortado no servidor):**
-  - Uma server action devolve só as linhas e colunas permitidas para o usuário.
-  - O cliente guarda essas linhas em cache (React Query) e os cálculos rodam no navegador quando o filtro muda, como hoje.
+> **Revisado em 28/10/2026 (decisão do responsável):** as telas antigas são
+> **reaproveitadas**, e não reescritas em React. São 1,4 MB de código de tela
+> (25 telas, 174 trechos de `innerHTML`); reescrever arriscaria o visual e o
+> comportamento que o RH já usa. Telas novas e reescritas futuras nascem em React.
+
+- **As telas antigas rodam como estão** numa página `/hub` do app novo:
+  - mesmo HTML, CSS, menu, barra de filtros e navegação de hoje;
+  - os scripts ficam em `public/legado-ui/`, na mesma ordem de carga, com as bibliotecas do CDN copiadas para `public/vendor/` (versão fixa; SheetJS 0.20.3).
+- **O que muda nos scripts antigos é só o acesso a dados:**
+  - não existe mais `window.sb`;
+  - os `dal-*.js` e os acessos diretos espalhados (lista em `src/lib/calculos/ACESSO-A-DADOS.md`) passam a chamar `HUB_API.chamar(operacao, dados)`, que faz `POST /api/hub/<operacao>`.
+- **Operações no servidor (`src/server/hub/`):** uma lista fechada, uma por função de acesso a dados. Cada operação:
+  - declara a permissão exigida (um teste falha se alguma não declarar);
+  - valida a entrada com Zod;
+  - escolhe as colunas explicitamente (`matricula` e textos sigilosos não saem);
+  - roda **dentro das RLS originais do Supabase**.
+- **RLS como rede de segurança (muda a seção 5, item 1):**
+  - as 164 policies de produção são recriadas para o papel restrito `hub_app` (migration `1_rls_original`);
+  - o servidor executa cada operação numa transação com `set local role hub_app` e `app.usuario_id`;
+  - assim, mesmo que uma operação esqueça uma checagem, o banco barra como o Supabase barrava.
+- **Visualizar como:** roda no servidor.
+  - A transação usa o `app.usuario_id` da pessoa escolhida, então o recorte é exatamente o dela.
+  - A transação é `read only`, e o servidor recusa operações de escrita.
+  - O `view-as.js` antigo deixa de filtrar no navegador.
+- **Cálculos:** os scripts antigos continuam fazendo as contas no navegador, como hoje. O porte em `src/lib/calculos` serve para a paridade e para as telas que forem reescritas em React.
 - **Upload de planilha:**
   - O navegador lê o .xlsx com o mesmo parser de hoje.
   - Uma rota recebe as linhas, valida com Zod e **substitui a tabela numa transação única**. Hoje é `admin_truncate` e depois insert em lotes: se cair no meio, a tabela fica vazia.
@@ -137,8 +154,8 @@ legado/                          app atual (referência e testes de paridade); s
 - **Organograma:** deixa de ser `organograma.html` num iframe e vira rota própria, com a mesma renderização.
 - **Fechamento:** os slides e o PPTX usam PptxGenJS via `import()` sob demanda e as mesmas imagens de `assets/fechamento`.
 - **Segurança das telas:**
-  - Nada de HTML montado por string.
-  - `dangerouslySetInnerHTML` só com `sanitize-html`.
+  - Telas antigas: o mesmo `U.escapeHtml` de hoje em todo HTML montado por string. O risco de XSS fica igual ao atual; a melhora está em os dados não saírem mais direto do banco para o navegador.
+  - Telas novas em React: nada de HTML por string; `dangerouslySetInnerHTML` só com `sanitize-html`.
 
 ## 9. Links públicos, arquivos e jobs
 - **Links públicos** (parecer do gestor, entrevista de desligamento e NPS):
