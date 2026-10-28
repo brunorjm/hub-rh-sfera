@@ -4,14 +4,28 @@
     {
       "name": "hub",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3006
     },
     {
       "name": "hub-legado",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["legado/static-server.js"],
+      "runtimeArgs": [
+        "legado/static-server.js"
+      ],
       "port": 8834
+    },
+    {
+      "name": "hub-producao",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start"
+      ],
+      "port": 3006
     }
   ]
 }
