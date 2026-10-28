@@ -160,7 +160,7 @@ legado/                          app atual (referência e testes de paridade); s
 ## 9. Links públicos, arquivos e jobs
 - **Links públicos** (parecer do gestor, entrevista de desligamento e NPS):
   - **URLs antigas continuam funcionando.** `/parecer-publico.html?token=`, `/entrevista-desligamento-publico.html…` e `/conexao-nps-publico.html#token=` são reescritas para as páginas novas, porque há links pendentes já enviados.
-  - O domínio novo assume o domínio atual, ou o domínio da Vercel redireciona até os links vencerem.
+  - Sem Vercel (decisão de 28/10/2026). Os links ainda abertos no endereço antigo (13 de entrevista de desligamento na cópia de 27/10; nenhum de parecer nem de NPS) são reenviados pelo RH a partir do hub novo, que monta o link com o endereço da VPS. Os tokens continuam válidos.
   - A página pública não usa sessão. Ela chama `/api/publico/*`, que executa as mesmas funções `*_publico_get/_salvar` do banco.
   - Tem rate limit por IP e `Referrer-Policy: no-referrer`.
   - **Nunca devolve CPF, telefone nem dado pessoal.**
@@ -202,7 +202,7 @@ legado/                          app atual (referência e testes de paridade); s
 2. Janela combinada com o RH. O hub antigo entra em modo só leitura (aviso na tela) e é feito o dump final.
 3. O dump final é importado em produção. Depois, migração dos arquivos e paridade de novo.
 4. O domínio ou link passa a apontar para o hub novo, e os redirects dos links públicos entram no ar.
-5. O Supabase fica **só leitura por 30 dias** como plano B. Desligar e apagar só com sua aprovação.
+5. **Supabase e Vercel saem de vez** (decisão de 28/10/2026): tudo fica na VPS. O plano B é o dump final, guardado cifrado no backup da VPS por 30 dias. Depois da carga, apague o projeto da Vercel, desligue o agendamento do Twygo no Supabase, troque a senha do banco do Supabase e apague o projeto.
 6. Por último:
    - o `AGENTS.md` e o `SETUP.md` são reescritos para a stack nova;
    - o `legado/`, o `vercel.json` e o `js/config.js` são removidos.

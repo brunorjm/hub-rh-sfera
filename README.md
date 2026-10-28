@@ -105,7 +105,7 @@ rm -rf _local/supabase.dump _local/import   # o dump tem dado pessoal
 - **Em aberto:**
   - CSP: começar em modo Report-Only;
   - prazo do link do parecer: decisão do RH;
-  - pausar ou apagar o projeto Supabase depois de 30 dias como plano B;
+  - **Supabase e Vercel saem de vez** (decisão de 28/10/2026). Depois da carga dos dados e dos PDFs, apague o projeto da Vercel e desligue o Supabase. O plano B é o **dump final, cifrado no backup da VPS por 30 dias**;
   - **trocar a senha do banco do Supabase:** a atual ficou exposta durante a migração.
 
 ---

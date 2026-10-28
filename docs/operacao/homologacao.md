@@ -96,3 +96,9 @@ Anote cada diferença com: tela, filtro, número no hub antigo e número no hub 
 - **Homologação não afeta produção:** o hub antigo segue no ar.
 - **Recomeçar do zero:** apague e recrie o banco `hub_rh_homolog`, e refaça a partir do passo 2.
 - **Antes da virada:** os dados digitados na homologação, como os testes do RH, não vão para produção. A virada usa um dump novo do Supabase.
+
+## 6. Depois de ir para produção (sem Vercel e sem Supabase)
+1. O RH reenvia os links de **entrevista de desligamento** que ainda estão em aberto (13 na cópia de 27/10), pelo botão de copiar link da tela. O link novo já sai com o endereço da VPS e o token é o mesmo.
+2. Apagar o projeto `hub-gestaodepessoas-sfera` na Vercel. A `main` já tem o hub novo, e um deploy lá quebraria o site.
+3. No Supabase, desligar o agendamento `sync-twygo-diario` (pg_cron), trocar a senha do banco e apagar o projeto.
+4. Guardar o dump final **cifrado** no backup da VPS por 30 dias (plano B) e apagar todas as outras cópias.
