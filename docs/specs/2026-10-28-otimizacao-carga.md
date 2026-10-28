@@ -117,7 +117,10 @@ O que falta é parar de mandar o banco inteiro para o navegador.
 ## 9. Decisões (aprovadas em 28/10/2026: valem as propostas)
 1. **Cache no navegador** (fase 2): sem cache persistente (proposta) ou com cache, mais rápido e com dado na máquina?
 2. **Visual na fase 3:** a tela antiga recebe números prontos (proposta: mais rápido de fazer) ou é reescrita em React?
-3. **Token da API da Feedz** para a fase 4: quem fornece, e se pode ser o mesmo usado pelo Portal ou um próprio do hub (proposta: próprio).
+3. **Token da API da Feedz** para a fase 4: a Feedz permite **um único token**, então o hub usa **o mesmo do Portal do Fera** (decisão de 28/10/2026). Cuidados:
+   - o token fica só na variável de ambiente `FEEDZ_API_TOKEN` do servidor, nunca no repositório;
+   - trocar o token num sistema exige trocar no outro no mesmo dia;
+   - o job do hub só lê da Feedz (nada de escrita) e respeita o limite de chamadas da API, para não derrubar a sincronização do Portal.
 4. **Ordem das fases × virada:** fazer a fase 1 antes da homologação (proposta, porque o RH já valida mais rápido) e as fases 2 a 4 depois da virada.
 
 ## 10. Fora do escopo
