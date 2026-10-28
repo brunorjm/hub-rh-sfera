@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+// Caminho antigo (hub na Vercel) → página servida por src/app/publico/<nome>/route.ts.
+const PAGINAS_PUBLICAS: [string, string][] = [
+  ["/parecer-publico.html", "/publico/parecer"],
+  ["/entrevista-desligamento-publico.html", "/publico/entrevista-desligamento"],
+  ["/conexao-nps-publico.html", "/publico/conexao-nps"],
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   productionBrowserSourceMaps: false,
@@ -29,9 +36,20 @@ const nextConfig: NextConfig = {
       {
         // Links públicos: o token não pode vazar para outro site pelo Referer.
         source: "/publico/:path*",
-        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }],
       },
+      // Os mesmos links pelos caminhos antigos (reescritos abaixo): os cabeçalhos
+      // valem pelo caminho pedido, então repetem aqui. A rota também os envia.
+      ...PAGINAS_PUBLICAS.map(([source]) => ({
+        source,
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }],
+      })),
     ];
+  },
+  // Links públicos SEM LOGIN já enviados por e-mail continuam valendo no mesmo
+  // endereço (query ?token= e hash #token= são preservados).
+  async rewrites() {
+    return PAGINAS_PUBLICAS.map(([source, destination]) => ({ source, destination }));
   },
 };
 

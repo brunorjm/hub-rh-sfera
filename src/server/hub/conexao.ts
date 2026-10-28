@@ -4,7 +4,7 @@ import { comUsuarioRls } from "@/lib/rls";
 import { temPermissao } from "@/lib/rbac/permissoes";
 import type { UsuarioHub } from "@/lib/sessao";
 import type { Storage } from "@/lib/storage";
-import { ErroOperacao, linhasJson, operacao, type ContextoOperacao, type Operacao } from "@/server/hub/operacao";
+import { ErroOperacao, linhasJson, mensagemDoBanco, operacao, type ContextoOperacao, type Operacao } from "@/server/hub/operacao";
 
 // Operações de: Conexão RH (conexao-store.js, conexao-nps.js, conexao-fit.js e
 // a ficha do colaborador em sections/conexao-rh.js).
@@ -27,7 +27,7 @@ const erroBanco = (e: unknown): ErroBanco | undefined => (e as { meta?: ErroBanc
 function recusaDoBanco(e: unknown): never {
   const b = erroBanco(e);
   if (b?.code === "42501") {
-    const msg = b.message && !/permission denied/i.test(b.message) ? b.message : "Sem permissão para estes dados.";
+    const msg = b.message && !/permission denied/i.test(b.message) ? mensagemDoBanco(b.message, "Sem permissão para estes dados.") : "Sem permissão para estes dados.";
     throw new ErroOperacao(403, msg);
   }
   throw e;

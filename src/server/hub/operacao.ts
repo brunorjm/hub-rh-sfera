@@ -40,6 +40,13 @@ export async function linhasJson(
   return r?.j ?? [];
 }
 
+// Mensagem do Postgres para a tela: o Prisma repassa com o prefixo da
+// severidade ("ERROR: Link inválido..."); o Supabase mostrava só o texto.
+export function mensagemDoBanco(mensagem: string | undefined | null, padrao: string): string {
+  const texto = (mensagem ?? "").replace(/^(ERROR|ERRO):\s*/i, "").trim();
+  return texto || padrao;
+}
+
 export class ErroOperacao extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);

@@ -4,9 +4,10 @@
 // Hub Sfera). Usa o mesmo motor de renderização de
 // js/pareceres/render-comum.js (HUB_PARECER_RENDER) que a tela autenticada
 // (js/sections/parecer-gestor.js), mas fala com o banco só através de duas
-// funções RPC (parecer_publico_get/parecer_publico_salvar, ver
-// supabase-migration.sql seção 7) — nunca lê/escreve as tabelas direto, então
-// não precisa (e não tem) sessão logada nem chave além da anon pública.
+// funções (parecer_publico_get/parecer_publico_salvar, ver
+// supabase-migration.sql seção 7), chamadas pelo servidor do Hub em
+// /api/publico/parecer (js/publico-api.js) — nunca lê/escreve as tabelas
+// direto e não precisa (nem tem) sessão logada.
 (function () {
   const U = HUB_UTILS;
   const PR = HUB_PARECER_RENDER;
@@ -28,15 +29,16 @@
 
   async function carregar() {
     if (!token) { telaErro('Link incompleto — falta o token de acesso. Copie o link exatamente como foi enviado por e-mail.'); return; }
+    // Fora do formato que o Hub gera: mesma mensagem do link inválido.
+    if (!/^[0-9a-z-]{16,64}$/.test(token)) { telaErro('Este link não é válido, já foi utilizado (o parecer já foi preenchido) ou expirou. Peça ao(à) recrutador(a) responsável para gerar um novo link.'); return; }
     root.innerHTML = `<div class="pp-card"><p class="hint">Carregando...</p></div>`;
-    let data, error;
+    let data;
     try {
-      ({ data, error } = await sb.rpc('parecer_publico_get', { p_token: token }));
+      data = await HUB_PUBLICO.chamar('parecer', { acao: 'ler', token });
     } catch (err) {
       telaErro('Não foi possível carregar o parecer agora (' + err.message + '). Tente novamente em instantes.');
       return;
     }
-    if (error) { telaErro('Não foi possível carregar o parecer agora (' + error.message + '). Tente novamente em instantes.'); return; }
     if (!data) { telaErro('Este link não é válido, já foi utilizado (o parecer já foi preenchido) ou expirou. Peça ao(à) recrutador(a) responsável para gerar um novo link.'); return; }
     row = data;
     modelo = (window.HUB_PARECER_MODELOS || {})[row.modelo];
@@ -73,12 +75,14 @@
     const btn = root.querySelector('#pg-salvar');
     btn.disabled = true; btn.textContent = 'Enviando...';
     try {
-      const { error } = await sb.rpc('parecer_publico_salvar', {
-        p_token: token, p_dados: formDados, p_nivel_recomendacao: formDados.nivelRecomendacao,
-        p_parecer_final: formDados.parecerFinal, p_justificativa: formDados.justificativa,
-        p_preenchido_por: formDados.gestorNome
+      await HUB_PUBLICO.chamar('parecer', {
+        acao: 'salvar', token,
+        dados: {
+          dados: formDados, nivelRecomendacao: formDados.nivelRecomendacao,
+          parecerFinal: formDados.parecerFinal, justificativa: formDados.justificativa,
+          preenchidoPor: formDados.gestorNome
+        }
       });
-      if (error) throw error;
       telaSucesso();
     } catch (err) {
       msgEl.innerHTML = `<div class="msg err">Erro ao enviar: ${U.escapeHtml(err.message)}</div>`;
@@ -86,7 +90,7 @@
     }
   }
 
-  if (!window.HUB_SUPABASE_READY) {
+  if (!window.HUB_PUBLICO) {
     telaErro('Configuração do sistema incompleta. Avise o time de R&S.');
   } else {
     carregar();

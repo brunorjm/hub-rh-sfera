@@ -3,7 +3,7 @@ import { comUsuarioRls } from "@/lib/rls";
 import { temAlguma, temPermissao } from "@/lib/rbac/permissoes";
 import type { UsuarioHub } from "@/lib/sessao";
 import { OPERACOES } from "@/server/hub/registro";
-import { ErroOperacao } from "@/server/hub/operacao";
+import { ErroOperacao, mensagemDoBanco } from "@/server/hub/operacao";
 
 export type ResultadoOperacao = { status: 200; dados: unknown } | { status: number; erro: string };
 
@@ -47,11 +47,11 @@ export async function executarOperacao(
     // Supabase devolvia. Classes 22 (dado) e 23 (integridade).
     const banco = (e as { meta?: { code?: string; message?: string } })?.meta;
     if (banco?.code && /^2[23]/.test(banco.code)) {
-      return { status: banco.code.startsWith("23") ? 409 : 400, erro: banco.message ?? "Dado inválido." };
+      return { status: banco.code.startsWith("23") ? 409 : 400, erro: mensagemDoBanco(banco.message, "Dado inválido.") };
     }
     // raise exception das funções do banco ("Este mês está fechado", "Período
     // inválido"...): são mensagens escritas para a tela, como no Supabase.
-    if (banco?.code === "P0001") return { status: 400, erro: banco.message ?? "Operação recusada." };
+    if (banco?.code === "P0001") return { status: 400, erro: mensagemDoBanco(banco.message, "Operação recusada.") };
     const msg = String((e as Error)?.message ?? e);
     // RLS/grant barrou ou escrita em transação só leitura: mesma situação do Supabase.
     if (/row-level security|permission denied|read-only transaction/i.test(msg)) {

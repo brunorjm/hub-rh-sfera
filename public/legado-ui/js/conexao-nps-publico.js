@@ -4,7 +4,8 @@
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const message=(title,text)=>{root.innerHTML='<h1>'+title+'</h1><p>'+escape(text)+'</p>';};
   if(!/^[0-9a-f]{64}$/.test(token||'')){message('Link incompleto','Peça ao RH o link individual do seu encontro.');return;}
-  async function request(answer=null,message=null){const response=await fetch(HUB_CONFIG.SUPABASE_URL+'/rest/v1/rpc/conexao_nps_public',{method:'POST',headers:{apikey:HUB_CONFIG.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({token,answer,message})});const data=await response.json();if(!response.ok)throw Error(data.message||'Link indisponível.');return {...data,status:data.answered?'answered':'pending'};}
+  // Servidor do Hub (js/publico-api.js → /api/publico/conexao-nps), mesma função do banco de antes.
+  async function request(answer=null,message=null){const data=answer===null?await HUB_PUBLICO.chamar('conexao-nps',{acao:'ler',token}):await HUB_PUBLICO.chamar('conexao-nps',{acao:'salvar',token,dados:{nota:answer,comentario:message}});if(!data)throw Error('Link indisponível.');return {...data,status:data.answered?'answered':'pending'};}
   try{
     const data=await request();
     if(data.status==='answered'){message('Resposta já registrada','Obrigado por compartilhar sua experiência. Este link já foi utilizado.');return;}

@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { ErroOperacao, linhasJson, operacao, type ContextoOperacao, type Operacao } from "@/server/hub/operacao";
+import { ErroOperacao, linhasJson, mensagemDoBanco, operacao, type ContextoOperacao, type Operacao } from "@/server/hub/operacao";
 
 // Operações de: Pesquisa de Clima, Engajamento, Boletim da Liderança e Satisfação.
 // Nome de cada operação: "pesquisas.<função>".
@@ -47,7 +47,7 @@ async function naFuncao<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (e) {
     const banco = (e as { meta?: { code?: string; message?: string } })?.meta;
-    if (banco?.code === "P0001") throw new ErroOperacao(400, banco.message ?? "Operação recusada pelo banco.");
+    if (banco?.code === "P0001") throw new ErroOperacao(400, mensagemDoBanco(banco.message, "Operação recusada pelo banco."));
     throw e;
   }
 }

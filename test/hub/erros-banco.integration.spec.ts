@@ -15,3 +15,10 @@ it("erro de regra do banco chega à tela com a mensagem do Postgres", async () =
   // Mensagem do Postgres (não a validação de entrada nem o erro genérico).
   expect("erro" in r && r.erro).toMatch(/invalid input syntax|violates/i);
 });
+
+it("mensagem do banco chega sem o prefixo de severidade do Postgres", async () => {
+  const { mensagemDoBanco } = await import("@/server/hub/operacao");
+  expect(mensagemDoBanco("ERROR: Link inválido ou expirado.", "x")).toBe("Link inválido ou expirado.");
+  expect(mensagemDoBanco("Este mês está fechado.", "x")).toBe("Este mês está fechado.");
+  expect(mensagemDoBanco(undefined, "padrão")).toBe("padrão");
+});

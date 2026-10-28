@@ -1,9 +1,10 @@
 // Página pública da Entrevista de Desligamento (entrevista-desligamento-
 // publico.html) — SEM LOGIN. Acessada pelo link que o(a) analista de RH
 // gera na tela Indicadores → Entrevista Desligamento e manda por e-mail
-// para o(a) ex-colaborador(a). Fala com o banco só via as RPCs
+// para o(a) ex-colaborador(a). Fala com o banco só via as funções
 // entrevista_desligamento_publico_get/salvar (ver supabase-migration.sql
-// seção 8) — nunca lê/escreve a tabela direto. Motor de perguntas em
+// seção 8), chamadas pelo servidor do Hub em /api/publico/entrevista-desligamento
+// (js/publico-api.js) — nunca lê/escreve a tabela direto. Motor de perguntas em
 // js/entrevista-desligamento/{modelo,render-comum}.js — o mesmo usado pela
 // tela "Ver resposta" (autenticada, só leitura) em
 // js/sections/entrevista-desligamento.js.
@@ -29,15 +30,16 @@
 
   async function carregar() {
     if (!token) { telaErro('Link incompleto — falta o token de acesso. Copie o link exatamente como foi enviado por e-mail.'); return; }
+    // Fora do formato que o Hub gera: mesma mensagem do link inválido.
+    if (!/^[0-9a-z-]{16,64}$/.test(token)) { telaErro('Este link não é válido, já foi utilizado (a entrevista já foi respondida) ou expirou. Peça ao RH para gerar um novo link.'); return; }
     root.innerHTML = `<div class="pp-card"><p class="hint">Carregando...</p></div>`;
-    let data, error;
+    let data;
     try {
-      ({ data, error } = await sb.rpc('entrevista_desligamento_publico_get', { p_token: token }));
+      data = await HUB_PUBLICO.chamar('entrevista-desligamento', { acao: 'ler', token });
     } catch (err) {
       telaErro('Não foi possível carregar a entrevista agora (' + err.message + '). Tente novamente em instantes.');
       return;
     }
-    if (error) { telaErro('Não foi possível carregar a entrevista agora (' + error.message + '). Tente novamente em instantes.'); return; }
     if (!data) { telaErro('Este link não é válido, já foi utilizado (a entrevista já foi respondida) ou expirou. Peça ao RH para gerar um novo link.'); return; }
     dados = data;
     respostas = Object.assign({}, data.respostas || {});
@@ -108,8 +110,7 @@
     const btn = root.querySelector('#ed-avancar');
     btn.disabled = true; btn.textContent = 'Enviando...';
     try {
-      const { error } = await sb.rpc('entrevista_desligamento_publico_salvar', { p_token: token, p_respostas: respostas });
-      if (error) throw error;
+      await HUB_PUBLICO.chamar('entrevista-desligamento', { acao: 'salvar', token, dados: { respostas } });
       telaSucesso();
     } catch (err) {
       root.querySelector('#ed-msg').innerHTML = `<div class="msg err">Erro ao enviar: ${U.escapeHtml(err.message)}</div>`;
@@ -117,7 +118,7 @@
     }
   }
 
-  if (!window.HUB_SUPABASE_READY) {
+  if (!window.HUB_PUBLICO) {
     telaErro('Configuração do sistema incompleta. Avise o time de RH.');
   } else {
     carregar();

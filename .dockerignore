@@ -1,0 +1,15 @@
+# Nunca vai para a imagem: dados de produção, segredos, build local e o legado.
+_local
+.env
+.env.*
+!.env.example
+node_modules
+.next
+coverage
+test-results
+playwright-report
+legado
+docs
+.git
+.claude
+*.log
