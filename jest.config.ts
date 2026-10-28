@@ -24,6 +24,8 @@ const config: Config = {
       ...base,
       displayName: "integration",
       testMatch: ["**/test/**/*.integration.spec.ts"],
+      // Só o banco de testes (dados inventados); nunca a cópia de produção.
+      setupFiles: ["<rootDir>/test/helpers/ambiente-integracao.ts"],
       maxWorkers: 1,
       testTimeout: 30000,
     },

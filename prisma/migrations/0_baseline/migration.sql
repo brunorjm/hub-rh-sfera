@@ -2,7 +2,6 @@
 -- PostgreSQL database dump
 --
 
-\restrict O4xSolTaknfz5rB1gQGeybFvh0XppGdkq2trfh5CsHRaX1ne5dADERP9ASOi6hy
 
 -- Dumped from database version 17.11
 -- Dumped by pg_dump version 17.11
@@ -6534,5 +6533,4 @@ ALTER TABLE ONLY public.profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict O4xSolTaknfz5rB1gQGeybFvh0XppGdkq2trfh5CsHRaX1ne5dADERP9ASOi6hy
 

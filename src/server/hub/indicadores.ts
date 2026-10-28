@@ -31,7 +31,7 @@ const ORIGEM: Partial<Record<(typeof TABELAS)[number], string>> = { entrevista_p
 const ident = (s: string) => `"${s.replace(/"/g, '""')}"`;
 const listaColunas = (csv: string) => csv.split(",").map((c) => ident(c.trim())).join(", ");
 
-export const lerPagina = operacao({
+const lerPagina = operacao({
   permissao: "autenticado",
   escrita: false,
   entrada: z.object({
@@ -46,3 +46,7 @@ export const lerPagina = operacao({
     return linhasJson(tx, `select ${colunas} from public.${origem} where id > $1 order by id asc limit $2`, aposId, limite);
   },
 });
+
+export const operacoes = {
+  "indicadores.lerPagina": lerPagina,
+};
