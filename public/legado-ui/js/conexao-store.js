@@ -14,7 +14,7 @@
  async function load(force=false){
   const user=window.HUB_USER?.id;if(!user)throw Error('Entre com seu usuário do Hub.');
   if(ready()&&!force)return read();if(pending)return pending;
-  pending=(async()=>{const {data,error}=await sb.rpc('conexao_state');if(error)throw Error(error.message);return accept(data,user);})();
+  pending=(async()=>{const data=await HUB_API.chamar('conexao.estado');return accept(data,user);})();
   try{return await pending;}finally{pending=null;}
  }
  const recordId=(kind,row)=>kind==='executions'?row.session:row.id;
@@ -27,8 +27,9 @@
     for(const row of next[kind]){const id=recordId(kind,row);if(!id||ids.has(id))throw Error('Registro sem identificação única.');ids.add(id);if(JSON.stringify(old.get(id))!==JSON.stringify(row))changes.push({kind,id,data:row,revision:revisions.get(kind+':'+id)||0});}
     if([...old.keys()].some(id=>!ids.has(id)))throw Error('O histórico não pode ser excluído. Cancele ou retifique o registro.');
    }
-   if(!changes.length)return read();const {data,error}=await sb.rpc('conexao_save',{changes});
-   if(error){if(error.code==='40001'){await load(true);throw Error('Outra pessoa atualizou este registro. Os dados foram recarregados. Reabra a turma e confira suas alterações antes de salvar novamente.');}throw Error(error.message);}
+   if(!changes.length)return read();const data=await HUB_API.chamar('conexao.salvar',{changes});
+   // Conflito de revisão (40001 no banco): o servidor devolve {conflito:true}.
+   if(data&&data.conflito){await load(true);throw Error('Outra pessoa atualizou este registro. Os dados foram recarregados. Reabra a turma e confira suas alterações antes de salvar novamente.');}
    return accept(data,user);
   }finally{busy=false;}
  }

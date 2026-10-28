@@ -1,16 +1,24 @@
 (function(){
   'use strict';
   const partition=()=>HUB_USER.id;
+  // PDFs pelo servidor do Hub (/api/arquivos/conexao-fit/<id>), que confere sessão,
+  // conexao_rh.documentos e o escopo do colaborador. Não há URL pública do arquivo.
+  async function arquivo(id,options,prefix){
+    let resp;try{resp=await fetch('/api/arquivos/conexao-fit/'+encodeURIComponent(id),{credentials:'same-origin',...options});}catch(e){throw Error(prefix+'sem conexão com o servidor do Hub.');}
+    if(resp.status===401)window.location.assign('/login');
+    if(!resp.ok){let body=null;try{body=await resp.json();}catch(e){}throw Error(prefix+((body&&body.erro)||('Erro '+resp.status)));}
+    return resp;
+  }
   async function list(employee){
     if(!HUB_PERMISSIONS.hasPerm(HUB_USER,'conexao_rh.documentos'))throw Error('Seu perfil não tem acesso aos documentos de Fit Cultural.');
     await HUB_CONEXAO_STORE.load(true);
     const records=HUB_CONEXAO_STORE.read().fits.filter(r=>r.employee===employee).sort((a,b)=>b.created.localeCompare(a.created));
-    return Promise.all(records.map(async r=>{const {data,error}=await sb.storage.from('conexao-fit').download(r.path);if(error)throw Error('Não foi possível abrir o PDF: '+error.message);return {...r,owner:partition(),file:data};}));
+    return Promise.all(records.map(async r=>{const resp=await arquivo(r.id,{},'Não foi possível abrir o PDF: ');return {...r,owner:partition(),file:await resp.blob()};}));
   }
   async function save(record){
     if(record.owner!==partition())throw Error('A sessão mudou. Reabra a ficha.');
     const previous=HUB_CONEXAO_STORE.read().fits.find(r=>r.id===record.id),pdfPath=record.employee+'/'+record.id+'.pdf';
-    if(!previous){const {error}=await sb.storage.from('conexao-fit').upload(pdfPath,record.file,{contentType:'application/pdf',upsert:false});if(error&&!/already exists|duplicate/i.test(error.message))throw Error('Não foi possível anexar o PDF: '+error.message);}
+    if(!previous)await arquivo(record.id,{method:'POST',headers:{'Content-Type':'application/pdf','X-Conexao-Colaborador':record.employee},body:record.file},'Não foi possível anexar o PDF: ');
     const {file,owner,...metadata}=record;metadata.path=pdfPath;
     await HUB_CONEXAO_STORE.mutate(state=>{const i=state.fits.findIndex(r=>r.id===record.id);if(i<0)state.fits.push(metadata);else state.fits[i]=metadata;});
   }
