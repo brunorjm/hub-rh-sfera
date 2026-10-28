@@ -1098,13 +1098,14 @@ model upload_preparo {
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model usuarios {
-  id           String    @id @db.Uuid
-  email        String?
-  senha_hash   String?
-  trocar_senha Boolean   @default(false)
-  criado_em    DateTime  @default(now()) @db.Timestamptz(6)
-  ultimo_login DateTime? @db.Timestamptz(6)
-  profiles     profiles?
+  id                    String    @id @db.Uuid
+  email                 String?
+  senha_hash            String?
+  trocar_senha          Boolean   @default(false)
+  criado_em             DateTime  @default(now()) @db.Timestamptz(6)
+  ultimo_login          DateTime? @db.Timestamptz(6)
+  sessoes_validas_desde DateTime? @db.Timestamptz(6)
+  profiles              profiles?
 }
 
 model vagas {

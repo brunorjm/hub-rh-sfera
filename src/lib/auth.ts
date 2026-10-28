@@ -36,9 +36,14 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.uid = user.id;
-        token.jti = crypto.randomUUID();
+        // Identificador da sessão para revogação e "Visualizar como". Fica num
+        // claim próprio: o NextAuth sobrescreve o "jti" do JWT a cada recodificação.
+        token.sid = crypto.randomUUID();
         token.trocarSenha = (user as { trocarSenha?: boolean }).trocarSenha === true;
-        await registrarJti(user.id, token.jti);
+        // Instante do login em ms. Não dá para usar o "iat" do JWT: o NextAuth
+        // regrava iat (e jti) toda vez que recodifica o token.
+        token.loginEm = Date.now();
+        await registrarJti(user.id, token.sid);
       }
       return token;
     },
@@ -46,13 +51,15 @@ export const authOptions: NextAuthOptions = {
       // Só o necessário para identificar a sessão; perfil e permissões são
       // lidos do banco no servidor (src/lib/sessao.ts), nunca do token.
       session.uid = token.uid as string;
-      session.jti = token.jti as string;
+      session.jti = token.sid as string;
+      // Emissão da sessão, comparada com usuarios.sessoes_validas_desde (sessao.ts).
+      session.iat = typeof token.loginEm === "number" ? token.loginEm : Number(token.iat ?? 0) * 1000;
       return session;
     },
   },
   events: {
     async signOut({ token }) {
-      if (token?.jti) await revogarJti(token.jti as string);
+      if (token?.sid) await revogarJti(token.sid as string);
       if (token?.uid) await registrarAcesso(token.uid as string, "logout");
     },
   },

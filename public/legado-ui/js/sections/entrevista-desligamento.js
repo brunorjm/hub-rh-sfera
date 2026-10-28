@@ -214,7 +214,6 @@
 
     const btn = modal.querySelector('#ed-btn-gerar');
     btn.disabled = true; btn.textContent = 'Gerando...';
-    const token = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
     const c = modalColab;
     let row;
     try {
@@ -226,12 +225,14 @@
           unidade: c.unidade || '', departamento: c.departamento || '',
           unidadeTrabalho: modalUnidadeTrabalho, local: op.next === 14 ? null : modalLocal,
           departamentoForms: op.next === 14 ? modalDepartamentoForms : null,
-          respostas: {}, status: 'Pendente', linkToken: token,
+          // Token e autor: o servidor gera/preenche e devolve a linha gravada.
+          respostas: {}, status: 'Pendente', linkToken: 'gerar',
           geradoPor: (HUB_USER && (HUB_USER.nome || HUB_USER.email)) || 'Desconhecido'
         };
         if (modalIdDesligamento) built.idDesligamento = modalIdDesligamento;
-        await R.insertRow('entrevistas_desligamento', built);
-        return built;
+        const salvo = await R.insertRow('entrevistas_desligamento', built);
+        if (!salvo || !salvo.linkToken) throw new Error('o servidor não devolveu o link.');
+        return salvo;
       });
     } catch (err) {
       msgEl.textContent = 'Erro ao gerar o link: ' + err.message; msgEl.style.display = 'block';
@@ -321,15 +322,15 @@
               <td>${U.escapeHtml(r.colaboradorNome || '')}</td><td>${U.escapeHtml(r.cargo || '')}</td>
               <td><span class="badge b4">Pendente</span></td><td>${U.escapeHtml(r.geradoPor || '')}</td>
               <td>${r.criadoEm ? U.fmtDateBR(String(r.criadoEm).slice(0, 10)) : '—'}</td>
-              <td class="row-actions">${r.linkToken ? `<button class="btn btn-outline btn-sm" data-copiar="${r.id}">Copiar link</button>` : ''}</td>
+              <td class="row-actions">${r.linkToken ? `<button class="btn btn-outline btn-sm" data-copiar="${U.escapeHtml(r.id)}">Copiar link</button>` : ''}</td>
             </tr>`).join('')}
             ${preenchidos.map(r => `<tr>
               <td>${U.escapeHtml(r.colaboradorNome || '')}</td><td>${U.escapeHtml(r.cargo || '')}</td>
               <td><span class="badge b2">Preenchido</span></td><td>${U.escapeHtml(r.geradoPor || '')}</td>
               <td>${r.dataFinalizacao ? U.fmtDateBR(String(r.dataFinalizacao).slice(0, 10)) : '—'}</td>
               <td class="row-actions">
-                ${r.linkToken ? `<button class="btn btn-outline btn-sm" data-copiar="${r.id}">Copiar link</button>` : ''}
-                <button class="btn btn-outline btn-sm" data-ver="${r.id}">Ver respostas</button>
+                ${r.linkToken ? `<button class="btn btn-outline btn-sm" data-copiar="${U.escapeHtml(r.id)}">Copiar link</button>` : ''}
+                <button class="btn btn-outline btn-sm" data-ver="${U.escapeHtml(r.id)}">Ver respostas</button>
               </td>
             </tr>`).join('')}
           </tbody>

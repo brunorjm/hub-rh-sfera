@@ -20,14 +20,23 @@ export type UsuarioHub = Escopo & {
   verComo?: UsuarioHub | null;
 };
 
-// Lê uma conta ativa no formato da sessão (sem verComo).
-export async function carregarConta(id: string, jti = ""): Promise<UsuarioHub | null> {
+// Sessão emitida (iat, ms) antes de sessoes_validas_desde foi revogada no
+// banco (redefinir senha, inativar, desligar). Não depende do Redis.
+export function sessaoRevogadaNoBanco(iat: number | undefined, validasDesde: Date | null | undefined): boolean {
+  if (!validasDesde) return false;
+  return !Number.isFinite(iat) || (iat as number) < validasDesde.getTime();
+}
+
+// Lê uma conta ativa no formato da sessão (sem verComo). Com iat (a sessão
+// do pedido), recusa a sessão emitida antes de sessoes_validas_desde.
+export async function carregarConta(id: string, jti = "", iat?: number): Promise<UsuarioHub | null> {
   const conta = await prisma.usuarios.findUnique({
     where: { id },
-    select: { trocar_senha: true, senha_hash: true, profiles: true },
+    select: { trocar_senha: true, senha_hash: true, sessoes_validas_desde: true, profiles: true },
   });
   const p = conta?.profiles;
   if (!conta?.senha_hash || !p || p.status !== "ativo") return null;
+  if (iat !== undefined && sessaoRevogadaNoBanco(iat, conta.sessoes_validas_desde)) return null;
   return {
     id: p.id,
     email: p.email,
@@ -67,7 +76,7 @@ export const usuarioAtual = cache(async (): Promise<UsuarioHub | null> => {
   if (!sessao?.uid || !sessao.jti) return null;
   if (await jtiRevogado(sessao.jti)) return null;
 
-  const u = await carregarConta(sessao.uid, sessao.jti);
+  const u = await carregarConta(sessao.uid, sessao.jti, Number(sessao.iat ?? 0));
   if (!u) return null;
 
   // Só quem administra acessos pode "vestir" outra conta (como no hub antigo).

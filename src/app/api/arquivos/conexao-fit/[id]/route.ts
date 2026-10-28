@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { lerCorpo } from "@/lib/corpo";
+import { origemPermitida } from "@/lib/origem";
 import { usuarioAtual } from "@/lib/sessao";
 import { getStorage } from "@/lib/storage";
 import { FIT_LIMITE_BYTES, gravarFit, lerFit, type ResultadoArquivo } from "@/server/hub/conexao";
@@ -10,10 +12,7 @@ const erro = (status: number, mensagem: string) =>
 
 // Sessão válida, sem troca de senha pendente e (no POST) pedido da própria origem.
 async function usuarioDaRequisicao(req: Request, checarOrigem: boolean) {
-  if (checarOrigem) {
-    const origem = req.headers.get("origin");
-    if (origem && origem !== new URL(req.url).origin) return erro(403, "Origem não permitida.");
-  }
+  if (checarOrigem && !origemPermitida(req)) return erro(403, "Origem não permitida.");
   const usuario = await usuarioAtual();
   if (!usuario) return erro(401, "Sessão encerrada. Entre de novo.");
   if (usuario.trocarSenha) return erro(403, "Troque a senha antes de continuar.");
@@ -48,33 +47,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       "X-Content-Type-Options": "nosniff",
     },
   });
-}
-
-// Corpo lido em pedaços até o limite: pedido maior é recusado sem ler o resto.
-async function lerCorpo(req: Request, limite: number): Promise<Uint8Array | null> {
-  const declarado = Number(req.headers.get("content-length") ?? "0");
-  if (declarado > limite) return null;
-  if (!req.body) return new Uint8Array();
-  const leitor = req.body.getReader();
-  const partes: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await leitor.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > limite) {
-      await leitor.cancel();
-      return null;
-    }
-    partes.push(value);
-  }
-  const bytes = new Uint8Array(total);
-  let pos = 0;
-  for (const p of partes) {
-    bytes.set(p, pos);
-    pos += p.byteLength;
-  }
-  return bytes;
 }
 
 // Anexo do PDF: POST /api/arquivos/conexao-fit/<id do registro>, corpo = o PDF

@@ -78,7 +78,7 @@
                   <td>${U.escapeHtml(p.parecerFinal || '—')}</td>
                   <td>${U.escapeHtml(p.preenchidoPor || '—')}</td>
                   <td>${p.dataFinalizacao ? U.fmtDateBR(p.dataFinalizacao) : '—'}</td>
-                  <td><button type="button" class="btn btn-outline btn-sm" data-ver="${p.id}">Ver</button></td>
+                  <td><button type="button" class="btn btn-outline btn-sm" data-ver="${U.escapeHtml(p.id)}">Ver</button></td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -99,7 +99,7 @@
         <div style="font-weight:700">${U.escapeHtml(p.candidatoNome || '—')}</div>
         <div style="font-size:12.5px;color:var(--muted)">${U.escapeHtml(p.cargo || '')} · Modelo: ${U.escapeHtml(modelo ? modelo.nome : p.modelo)}${dataAgendada ? ` · Entrevista agendada: ${dataAgendada}${cand.horarioGestor ? ' às ' + U.escapeHtml(cand.horarioGestor) : ''}` : ''}</div>
       </div>
-      ${canFill() ? `<button type="button" class="btn btn-primary btn-sm" style="width:auto" data-preencher="${p.id}">Preencher Parecer</button>` : `<span class="hint">Aguardando o(a) gestor(a)</span>`}
+      ${canFill() ? `<button type="button" class="btn btn-primary btn-sm" style="width:auto" data-preencher="${U.escapeHtml(p.id)}">Preencher Parecer</button>` : `<span class="hint">Aguardando o(a) gestor(a)</span>`}
     </div>`;
   }
 

@@ -65,7 +65,7 @@
       ${gestorNomeHTML}
       <div class="field"><label>Nome do(a) Recrutador(a)</label><input value="${U.escapeHtml(d.recrutadorNome || '')}" disabled></div>
       <div class="field"><label>Nome Completo do(a) Candidato(a)</label><input value="${U.escapeHtml(d.candidatoNome || '')}" disabled></div>
-      <div class="field"><label>Data da entrevista <span class="req">*</span></label><input type="date" id="pg-dataEntrevista" value="${d.dataEntrevista || ''}" ${dis}></div>
+      <div class="field"><label>Data da entrevista <span class="req">*</span></label><input type="date" id="pg-dataEntrevista" value="${U.escapeHtml(d.dataEntrevista || '')}" ${dis}></div>
       <div class="field"><label>Cargo</label><input value="${U.escapeHtml(d.cargo || '')}" disabled></div>
       ${renderLocalizacao(modelo, d, dis)}
       <div class="field"><label>Candidato(a) compareceu? <span class="req">*</span></label>

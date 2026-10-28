@@ -294,3 +294,82 @@ describe("recrutamento.criarSolicitacao / listarSolicitacoes / decidirSolicitaca
     expect(n[0]!.n).toBe(0);
   });
 });
+
+describe("token de link público e autoria vêm do servidor", () => {
+  it("link_token enviado é trocado por 64 hex do servidor (inserir e atualizar)", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const ins = await executar("recrutamento.inserir", {
+      tabela: "pareceres_gestor",
+      linha: { id: "PG-T", candidato_id: "CAND-1", vaga_id: "VAGA-1", modelo: "hering", status: "Pendente", link_token: "token-escolhido-pelo-navegador" },
+    }, admin);
+    expect(ins.status).toBe(200);
+    const t1 = (dados(ins) as Linha).link_token as string;
+    expect(t1).toMatch(/^[0-9a-f]{64}$/);
+
+    const upd = await executar("recrutamento.atualizar", {
+      tabela: "pareceres_gestor", id: "PG-T", linha: { link_token: "00000000-0000-4000-8000-000000000000" },
+    }, admin);
+    const t2 = (dados(upd) as Linha).link_token as string;
+    expect(t2).toMatch(/^[0-9a-f]{64}$/);
+    expect(t2).not.toBe(t1);
+    const [g] = await prisma.$queryRawUnsafe<Linha[]>("select link_token from public.pareceres_gestor where id = 'PG-T'");
+    expect(g!.link_token).toBe(t2);
+
+    // Sem link (null) continua sem link.
+    const sem = await executar("recrutamento.atualizar", { tabela: "pareceres_gestor", id: "PG-T", linha: { link_token: null } }, admin);
+    expect((dados(sem) as Linha).link_token).toBeNull();
+  });
+
+  it("autoria: criar grava o usuário da sessão; editar sobrescreve atualizado_por e mantém quem criou/enviou", async () => {
+    const rh = await criarConta({
+      perfil: "rh",
+      permissoes: { "recrutamento.candidatos": true, "treinamento_dev.onboarding": true, "treinamento_dev.visita_loja": true },
+    });
+    const forjado = "Outra Pessoa (forjado)";
+
+    const cand = await executar("recrutamento.atualizar", { tabela: "candidatos", id: "CAND-1", linha: { nome: "Candidata Um", atualizado_por: forjado } }, rh);
+    expect((dados(cand) as Linha).atualizado_por).toBe(rh.nome);
+    const novo = await executar("recrutamento.inserir", { tabela: "candidatos", linha: { id: "CAND-9", vaga_id: "VAGA-1", nome: "Nova", atualizado_por: forjado } }, rh);
+    expect((dados(novo) as Linha).atualizado_por).toBe(rh.nome);
+
+    const onb = await executar("recrutamento.inserir", { tabela: "onboarding", linha: { candidato_id: "CAND-1", vaga_id: "VAGA-1", enviado_por: forjado } }, rh);
+    const onbId = (dados(onb) as Linha).id as string;
+    expect((dados(onb) as Linha).enviado_por).toBe(rh.nome);
+    // A tela de Onboarding devolve a linha inteira ao editar: enviado_por do navegador é descartado.
+    const onb2 = await executar("recrutamento.atualizar", { tabela: "onboarding", id: onbId, linha: { status: "Realizado", enviado_por: forjado } }, rh);
+    expect(dados(onb2)).toMatchObject({ status: "Realizado", enviado_por: rh.nome });
+
+    const vis = await executar("recrutamento.inserir", { tabela: "visitas_loja", linha: { id: "VL-1", loja: "Loja Centro", criado_por: forjado } }, rh);
+    expect((dados(vis) as Linha).criado_por).toBe(rh.nome);
+  });
+
+  it("autoria no Controle e na Entrevista de Desligamento; solicitante (gestor do pedido) fica como veio", async () => {
+    const rh = await criarConta({ perfil: "rh", permissoes: { "indicadores.controle_desligamento": true } });
+    const outra = await criarConta({ perfil: "rh", permissoes: { "indicadores.controle_desligamento": true } });
+    const forjado = "Outra Pessoa (forjado)";
+    try {
+      const c = await executar("recrutamento.inserir", {
+        tabela: "controle_desligamento",
+        linha: { id_desligamento: "TESTE-AUT-1", colaborador_nome: "Pessoa Inventada", unidade: "Loja Centro", solicitante: "Gestora Inventada", criado_por: forjado, atualizado_por: forjado },
+      }, rh);
+      expect(c).toMatchObject({ status: 200 });
+      expect(dados(c)).toMatchObject({ solicitante: "Gestora Inventada", criado_por: rh.nome, atualizado_por: rh.nome });
+      const id = (dados(c) as Linha).id;
+      const u = await executar("recrutamento.atualizar", {
+        tabela: "controle_desligamento", id, linha: { status_feedz: "Feito", criado_por: forjado, atualizado_por: forjado },
+      }, outra);
+      expect(dados(u)).toMatchObject({ criado_por: rh.nome, atualizado_por: outra.nome });
+
+      const e = await executar("recrutamento.inserir", {
+        tabela: "entrevistas_desligamento",
+        linha: { id: "ED-AUT", colaborador_nome: "Pessoa Inventada", respostas: {}, status: "Pendente", link_token: "x".repeat(20), gerado_por: forjado },
+      }, rh);
+      expect(e.status).toBe(200);
+      expect((dados(e) as Linha).gerado_por).toBe(rh.nome);
+      expect((dados(e) as Linha).link_token).toMatch(/^[0-9a-f]{64}$/);
+    } finally {
+      await prisma.$executeRawUnsafe(`delete from public.controle_desligamento where id_desligamento = 'TESTE-AUT-1'`);
+      await prisma.$executeRawUnsafe(`delete from public.entrevistas_desligamento where id = 'ED-AUT'`);
+    }
+  });
+});

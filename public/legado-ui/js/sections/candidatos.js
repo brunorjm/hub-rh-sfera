@@ -763,9 +763,12 @@
     if (!colaborador || !colaborador.email) { alert('Defina o Solicitante da vaga (com e-mail na planilha de Colaboradores) antes de gerar o link.'); return; }
     let token = parecer.linkToken;
     if (!token) {
-      token = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      // O servidor gera o token (qualquer valor enviado é trocado) e devolve a
+      // linha gravada: o link usa o token DEVOLVIDO.
       try {
-        await R.updateRow('pareceres_gestor', parecer.id, { linkToken: token });
+        const salvo = await R.updateRow('pareceres_gestor', parecer.id, { linkToken: 'gerar' });
+        token = salvo && salvo.linkToken;
+        if (!token) throw new Error('o servidor não devolveu o link.');
         parecer.linkToken = token;
       } catch (err) { alert('Erro ao gerar o link: ' + err.message); return; }
     }

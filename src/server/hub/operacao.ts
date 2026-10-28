@@ -47,6 +47,20 @@ export function mensagemDoBanco(mensagem: string | undefined | null, padrao: str
   return texto || padrao;
 }
 
+// Resumo de um erro para o log do servidor: classe, código e o começo da
+// mensagem, sem o objeto inteiro do Prisma (que carrega a consulta e os
+// parâmetros) e sem trechos entre aspas/parênteses, onde o Postgres repete
+// valores ("Key (email)=(x@y) already exists", invalid input "abc").
+export function resumoErro(e: unknown): string {
+  const err = e as { name?: string; code?: string; meta?: { code?: string; message?: string }; message?: string } | null;
+  const codigo = err?.meta?.code ?? err?.code ?? "-";
+  const msg = String(err?.meta?.message ?? err?.message ?? e ?? "")
+    .split("\n")[0]!
+    .replace(/"[^"]*"|'[^']*'|`[^`]*`|\([^)]*\)/g, "…")
+    .slice(0, 120);
+  return `${err?.name ?? "Erro"} code=${codigo} ${msg}`.trim();
+}
+
 export class ErroOperacao extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);

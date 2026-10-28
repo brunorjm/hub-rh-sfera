@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import { comUsuarioRls } from "@/lib/rls";
-import { definirVerComo } from "@/lib/sessao";
+import { carregarConta, definirVerComo } from "@/lib/sessao";
 import { revogarSessoesDoUsuario } from "@/lib/sessao-revogacao";
 import { encerrarVerComo } from "@/server/hub/admin";
 import { criarConta, executar, limpar, prisma } from "../helpers/hub";
@@ -236,7 +236,7 @@ describe("admin.criarAcesso", () => {
   });
 
   it("quem não é Administrador não dá perfil Administrador nem permissões admin.*", async () => {
-    const rh = await criarConta({ perfil: "rh", permissoes: USUARIOS });
+    const rh = await criarConta({ perfil: "rh", permissoes: { ...USUARIOS, "indicadores.headcount": true } });
     expect((await executar("admin.criarAcesso", novoAcesso({ perfil: "admin" }), rh)).status).toBe(403);
     expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: { "admin.upload": true } }), rh)).status).toBe(403);
     expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: { "admin.upload": false, "indicadores.headcount": true } }), rh)).status).toBe(200);
@@ -412,6 +412,119 @@ describe("Visualizar como", () => {
     const [log] = await prisma.viewas_log.findMany();
     expect(log!.encerrado_em).toBeInstanceOf(Date);
     expect(definirVerComo).toHaveBeenLastCalledWith(admin.jti, null);
+  });
+});
+
+// ---- Quem administra acessos sem ser Administrador --------------------------------
+
+describe("Cadastro de Acessos por quem não é Administrador", () => {
+  const editar = (id: string, extra: Linha = {}) => ({
+    id, nome: "Nome Editado", perfil: "gestor", unidades: ["Loja Norte"], departamentos: [], permissoes: {}, ...extra,
+  });
+
+  it("(a) não altera o próprio perfil, status nem senha", async () => {
+    const rh = await criarConta({ perfil: "rh", permissoes: { ...USUARIOS, "indicadores.headcount": true } });
+    const r = await executar("admin.salvarPerfil", editar(rh.id, { perfil: "rh", unidades: [], permissoes: { ...USUARIOS, "indicadores.headcount": true } }), rh);
+    expect(r.status).toBe(403);
+    expect(erro(r)).toMatch(/próprio cadastro/);
+    expect((await executar("admin.alterarStatus", { id: rh.id, status: "ativo" }, rh)).status).toBe(403);
+    expect((await executar("admin.redefinirSenha", { id: rh.id, senha: "novaProvisoria9" }, rh)).status).toBe(403);
+    // Administrador segue podendo editar o próprio cadastro.
+    const admin = await criarConta({ perfil: "admin" });
+    expect((await executar("admin.salvarPerfil", editar(admin.id, { perfil: "admin" }), admin)).status).toBe(200);
+  });
+
+  it("(b) só concede permissão que já tem ou que o alvo já tinha", async () => {
+    const rh = await criarConta({ perfil: "rh", permissoes: { ...USUARIOS, "indicadores.headcount": true } });
+    const semMinha = await executar("admin.criarAcesso", novoAcesso({ permissoes: { "indicadores.headcount": true, "indicadores.pesquisa_clima": true } }), rh);
+    expect(semMinha.status).toBe(403);
+    expect(erro(semMinha)).toMatch(/indicadores.pesquisa_clima/);
+    expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: { "indicadores.headcount": true, "indicadores.pesquisa_clima": false } }), rh)).status).toBe(200);
+
+    const alvo = await criarConta({ perfil: "gestor", permissoes: { "indicadores.pesquisa_clima": true } });
+    // Manter o que o alvo já tinha pode; acrescentar o que o ator não tem, não.
+    expect((await executar("admin.salvarPerfil", editar(alvo.id, { permissoes: { "indicadores.pesquisa_clima": true, "indicadores.headcount": true } }), rh)).status).toBe(200);
+    expect((await executar("admin.salvarPerfil", editar(alvo.id, { permissoes: { "indicadores.pesquisa_clima": true, "indicadores.satisfacao": true } }), rh)).status).toBe(403);
+    expect((await prisma.profiles.findUnique({ where: { id: alvo.id } }))!.permissoes).toEqual({
+      "indicadores.pesquisa_clima": true, "indicadores.headcount": true,
+    });
+  });
+
+  it("(c) recorte do alvo não pode ser mais amplo que o do ator", async () => {
+    const rh = await criarConta({
+      perfil: "rh", permissoes: USUARIOS, unidades: ["Loja Norte", "Loja Sul"], departamentos: [], satisfacaoAreas: ["Financeiro"],
+    });
+    // Unidades: vazia (= todas) ou fora da lista do ator, não.
+    expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: {}, unidades: [], satisfacao_areas: ["Financeiro"] }), rh)).status).toBe(403);
+    expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: {}, unidades: ["Loja Centro"], satisfacao_areas: ["Financeiro"] }), rh)).status).toBe(403);
+    // Áreas da Satisfação: o ator tem lista, então a do alvo não pode ser vazia nem maior.
+    const semAreas = await executar("admin.criarAcesso", novoAcesso({ permissoes: {}, unidades: ["Loja Sul"] }), rh);
+    expect(semAreas.status).toBe(403);
+    expect(erro(semAreas)).toMatch(/áreas da Satisfação/);
+    expect((await executar("admin.criarAcesso", novoAcesso({ permissoes: {}, unidades: ["Loja Sul"], satisfacao_areas: ["RH"] }), rh)).status).toBe(403);
+    // Departamentos: ator sem restrição, alvo com qualquer lista.
+    expect((await executar("admin.criarAcesso", novoAcesso({
+      permissoes: {}, unidades: ["Loja Sul"], departamentos: ["Vendas"], satisfacao_areas: ["Financeiro"],
+    }), rh)).status).toBe(200);
+
+    // Editar sem mandar satisfacao_areas: vale a que o alvo já tem.
+    const alvo = await criarConta({ perfil: "gestor", unidades: ["Loja Norte"], satisfacaoAreas: ["Financeiro"] });
+    expect((await executar("admin.salvarPerfil", editar(alvo.id), rh)).status).toBe(200);
+    expect((await executar("admin.salvarPerfil", editar(alvo.id, { unidades: [] }), rh)).status).toBe(403);
+    const amplo = await criarConta({ perfil: "gestor", unidades: ["Loja Norte"] });
+    expect((await executar("admin.salvarPerfil", editar(amplo.id), rh)).status).toBe(403);
+  });
+
+  it("(d) redefinir senha e Visualizar como só sobre conta com acesso contido no do ator", async () => {
+    const rh = await criarConta({ perfil: "rh", permissoes: { ...USUARIOS, "indicadores.headcount": true }, unidades: ["Loja Norte"] });
+    const contido = await criarConta({ perfil: "gestor", permissoes: { "indicadores.headcount": true }, unidades: ["Loja Norte"] });
+    const maisPermissao = await criarConta({ perfil: "gestor", permissoes: { "indicadores.pesquisa_clima": true }, unidades: ["Loja Norte"] });
+    const maisRecorte = await criarConta({ perfil: "gestor", permissoes: { "indicadores.headcount": true }, unidades: [] });
+    for (const alvo of [maisPermissao, maisRecorte]) {
+      expect((await executar("admin.redefinirSenha", { id: alvo.id, senha: "novaProvisoria9" }, rh)).status).toBe(403);
+      expect((await executar("admin.verComoIniciar", { alvoId: alvo.id }, rh)).status).toBe(403);
+    }
+    expect(revogarSessoesDoUsuario).not.toHaveBeenCalled();
+    expect(definirVerComo).not.toHaveBeenCalled();
+    expect((await executar("admin.redefinirSenha", { id: contido.id, senha: "novaProvisoria9" }, rh)).status).toBe(200);
+    expect((await executar("admin.verComoIniciar", { alvoId: contido.id }, rh)).status).toBe(200);
+    // Administrador segue livre.
+    const admin = await criarConta({ perfil: "admin" });
+    expect((await executar("admin.redefinirSenha", { id: maisPermissao.id, senha: "novaProvisoria9" }, admin)).status).toBe(200);
+  });
+});
+
+// ---- Revogação de sessão no banco ---------------------------------------------------
+
+describe("sessoes_validas_desde (revogação sem Redis)", () => {
+  it("redefinir senha recusa a sessão emitida antes; a emitida depois vale", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const alvo = await criarConta({ perfil: "gestor" });
+    const antes = Date.now() - 5_000;
+    expect(await carregarConta(alvo.id, "j", antes)).not.toBeNull();
+    expect((await executar("admin.redefinirSenha", { id: alvo.id, senha: "novaProvisoria9" }, admin)).status).toBe(200);
+    const login = await prisma.usuarios.findUnique({ where: { id: alvo.id } });
+    expect(login!.sessoes_validas_desde).toBeInstanceOf(Date);
+    expect(await carregarConta(alvo.id, "j", antes)).toBeNull();
+    expect(await carregarConta(alvo.id, "j", Date.now() + 1_000)).not.toBeNull();
+    // Sem iat (leitura de conta para o "Visualizar como") não há sessão a conferir.
+    expect(await carregarConta(alvo.id)).not.toBeNull();
+  });
+
+  it("inativar e desligar gravam sessoes_validas_desde; reativar não mexe", async () => {
+    const admin = await criarConta({ perfil: "admin" });
+    const alvo = await criarConta({ perfil: "gestor" });
+    expect((await executar("admin.alterarStatus", { id: alvo.id, status: "inativo" }, admin)).status).toBe(200);
+    const d1 = (await prisma.usuarios.findUnique({ where: { id: alvo.id } }))!.sessoes_validas_desde;
+    expect(d1).toBeInstanceOf(Date);
+    expect((await executar("admin.alterarStatus", { id: alvo.id, status: "ativo" }, admin)).status).toBe(200);
+    expect((await prisma.usuarios.findUnique({ where: { id: alvo.id } }))!.sessoes_validas_desde).toEqual(d1);
+    // Reativada, a sessão de antes da inativação continua recusada.
+    expect(await carregarConta(alvo.id, "j", d1!.getTime() - 1)).toBeNull();
+    expect(await carregarConta(alvo.id, "j", d1!.getTime() + 1)).not.toBeNull();
+    expect((await executar("admin.alterarStatus", { id: alvo.id, status: "desligado" }, admin)).status).toBe(200);
+    const d2 = (await prisma.usuarios.findUnique({ where: { id: alvo.id } }))!.sessoes_validas_desde;
+    expect(d2!.getTime()).toBeGreaterThanOrEqual(d1!.getTime());
   });
 });
 

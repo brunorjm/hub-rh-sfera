@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { lerCorpo } from "@/lib/corpo";
+import { origemPermitida } from "@/lib/origem";
 import { usuarioAtual, type UsuarioHub } from "@/lib/sessao";
 import { registrarAcesso } from "@/lib/login";
 import { PAGINA_HUB } from "@/server/hub/pagina-hub";
@@ -55,8 +57,9 @@ export async function GET(req: Request) {
 // durante a visualização, elas rodam como a conta vista e não gravam: aqui o
 // registro do viewas_log é fechado com a identidade real.
 export async function POST(req: Request) {
-  const origem = req.headers.get("origin");
-  if (origem && origem !== new URL(req.url).origin) return NextResponse.json({ erro: "Origem não permitida." }, { status: 403 });
+  if (!origemPermitida(req)) return NextResponse.json({ erro: "Origem não permitida." }, { status: 403 });
+  // A ação vem na URL; o corpo não é usado, mas é lido com limite (16 KB).
+  if (!(await lerCorpo(req, 16 * 1024))) return NextResponse.json({ erro: "Pedido grande demais." }, { status: 413 });
   const u = await usuarioAtual();
   if (!u) return NextResponse.json({ erro: "Sessão encerrada. Entre de novo." }, { status: 401 });
   const acao = new URL(req.url).searchParams.get("acao");

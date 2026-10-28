@@ -10,19 +10,28 @@ import { criarConta, executar, limpar, prisma } from "../helpers/hub";
 
 type Linha = Record<string, unknown>;
 
-// IP próprio por execução: o limite por IP (Redis) não vaza entre rodadas.
+// IP só é confiável atrás do proxy (TRUST_PROXY): o último item do
+// X-Forwarded-For. IP próprio por execução: o limite (Redis) não vaza entre rodadas.
+process.env.TRUST_PROXY = "true";
 const IP = `teste-${randomUUID()}`;
 const CPF = "00000000191";
 const TELEFONE = "11999990000";
 
-async function chamar(pagina: PaginaPublica, corpo: unknown, opcoes: { ip?: string; origem?: string } = {}) {
-  const headers: Record<string, string> = { "content-type": "application/json", "x-real-ip": opcoes.ip ?? IP };
+async function chamar(
+  pagina: PaginaPublica,
+  corpo: unknown,
+  opcoes: { ip?: string; origem?: string; site?: string; corpoBruto?: ReadableStream<Uint8Array> } = {},
+) {
+  // O primeiro item do X-Forwarded-For vem do cliente e é ignorado.
+  const headers: Record<string, string> = {
+    "content-type": "application/json", "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 250)}, ${opcoes.ip ?? IP}`,
+  };
   if (opcoes.origem) headers.origin = opcoes.origem;
+  if (opcoes.site) headers["sec-fetch-site"] = opcoes.site;
+  const body = opcoes.corpoBruto ?? (typeof corpo === "string" ? corpo : JSON.stringify(corpo));
   const r = await atenderPublico(
     pagina,
-    new Request(`http://localhost/api/publico/${pagina}`, {
-      method: "POST", headers, body: typeof corpo === "string" ? corpo : JSON.stringify(corpo),
-    }),
+    new Request(`http://localhost/api/publico/${pagina}`, { method: "POST", headers, body, duplex: "half" } as RequestInit),
   );
   return { status: r.status, corpo: (await r.json()) as { dados?: unknown; erro?: string }, headers: r.headers };
 }
@@ -70,7 +79,7 @@ describe("páginas públicas (caminhos antigos)", () => {
 });
 
 describe("/api/publico/parecer", () => {
-  const TOKEN = randomUUID();
+  let TOKEN = "";
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(`
@@ -92,8 +101,11 @@ describe("/api/publico/parecer", () => {
       },
     }, admin);
     expect(ins.status).toBe(200);
-    const upd = await executar("recrutamento.atualizar", { tabela: "pareceres_gestor", id: "PG-1", linha: { link_token: TOKEN } }, admin);
+    // O token enviado pela tela é trocado pelo do servidor; vale o devolvido.
+    const upd = await executar("recrutamento.atualizar", { tabela: "pareceres_gestor", id: "PG-1", linha: { link_token: randomUUID() } }, admin);
     expect(upd.status).toBe(200);
+    TOKEN = ((upd as { dados: Linha }).dados.link_token as string);
+    expect(TOKEN).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("ler com token válido devolve só os campos que a página usa, sem contato", async () => {
@@ -145,18 +157,63 @@ describe("/api/publico/parecer", () => {
     expect((await chamar("parecer", { acao: "salvar", token: TOKEN, dados: { dados: {}, x: "y".repeat(300_000) } })).status).toBe(413);
     const fora = await chamar("parecer", { acao: "ler", token: TOKEN }, { origem: "https://outro-site.test" });
     expect(fora.status).toBe(403);
+    expect((await chamar("parecer", { acao: "ler", token: TOKEN }, { site: "cross-site" })).status).toBe(403);
     // Nada disso tocou o parecer.
     const [pg] = await prisma.$queryRawUnsafe<Linha[]>("select status from public.pareceres_gestor where id = 'PG-1'");
     expect(pg!.status).toBe("Pendente");
   });
 
+  it("dataEntrevista fora de AAAA-MM-DD é recusada (400) e nada é gravado", async () => {
+    for (const dataEntrevista of ['"><img src=x onerror=alert(1)>', "2026-10-01T00:00", 20261001]) {
+      const r = await chamar("parecer", { acao: "salvar", token: TOKEN, dados: { dados: { dataEntrevista }, parecerFinal: "Reprovado" } });
+      expect(r.status).toBe(400);
+      expect(r.corpo.erro).toMatch(/Data da entrevista inválida/);
+    }
+    const [pg] = await prisma.$queryRawUnsafe<Linha[]>("select status from public.pareceres_gestor where id = 'PG-1'");
+    expect(pg!.status).toBe("Pendente");
+  });
+
+  it("corpo chunked acima de 256 KB: 413 sem ler tudo", async () => {
+    let enviados = 0;
+    const pedaco = new TextEncoder().encode("x".repeat(64 * 1024));
+    const corpoBruto = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (enviados++ >= 100) return c.close(); // ~6 MB se fosse lido inteiro
+        c.enqueue(pedaco);
+      },
+    });
+    const r = await chamar("parecer", null, { corpoBruto });
+    expect(r.status).toBe(413);
+    expect(enviados).toBeLessThan(10);
+  });
+
+  it("limite por IP vem antes de ler o corpo", async () => {
+    const ip = `teste-${randomUUID()}`;
+    for (let i = 0; i < 80; i++) await chamar("parecer", { acao: "ler", token: "curto" }, { ip });
+    const r = await chamar("parecer", "{nao é json", { ip });
+    expect(r.status).toBe(429);
+  });
+
+  it("limite por token ao salvar (10 / 15 min), mesmo trocando de IP ou sem IP conhecido", async () => {
+    const token = randomUUID();
+    for (let i = 0; i < 10; i++) {
+      expect((await chamar("parecer", { acao: "salvar", token, dados: { dados: {} } }, { ip: `teste-${randomUUID()}` })).status).toBe(400);
+    }
+    expect((await chamar("parecer", { acao: "salvar", token, dados: { dados: {} } }, { ip: `teste-${randomUUID()}` })).status).toBe(429);
+    process.env.TRUST_PROXY = "";
+    try {
+      expect((await chamar("parecer", { acao: "salvar", token, dados: { dados: {} } })).status).toBe(429);
+    } finally {
+      process.env.TRUST_PROXY = "true";
+    }
+  });
+
   it("rate limit por IP: estourou, 429 com Retry-After", async () => {
     const ip = `teste-${randomUUID()}`;
-    const token = randomUUID();
     for (let i = 0; i < 20; i++) {
-      expect((await chamar("parecer", { acao: "salvar", token, dados: { dados: {} } }, { ip })).status).toBe(400);
+      expect((await chamar("parecer", { acao: "salvar", token: randomUUID(), dados: { dados: {} } }, { ip })).status).toBe(400);
     }
-    const r = await chamar("parecer", { acao: "salvar", token, dados: { dados: {} } }, { ip });
+    const r = await chamar("parecer", { acao: "salvar", token: randomUUID(), dados: { dados: {} } }, { ip });
     expect(r.status).toBe(429);
     expect(Number(r.headers.get("retry-after"))).toBeGreaterThan(0);
     // Outro IP segue normal.
@@ -165,9 +222,10 @@ describe("/api/publico/parecer", () => {
 });
 
 describe("/api/publico/entrevista-desligamento", () => {
-  const TOKEN = randomUUID();
+  let TOKEN = "";
 
-  async function criarEntrevista(id: string, token: string) {
+  // Devolve o token gerado pelo servidor (o enviado pela tela é ignorado).
+  async function criarEntrevista(id: string): Promise<string> {
     // Como a tela Entrevista Desligamento faz ao gerar o link.
     const admin = await criarConta({ perfil: "admin" });
     const r = await executar("recrutamento.inserir", {
@@ -176,13 +234,18 @@ describe("/api/publico/entrevista-desligamento", () => {
         id, colaborador_external_id: "EXT-1", colaborador_nome: "Pessoa Inventada", colaborador_cpf: CPF,
         colaborador_email: "pessoa@exemplo.test", colaborador_telefone: TELEFONE, cargo: "Consultora",
         unidade: "Loja Centro", departamento: "Vendas", unidade_trabalho: "Loja", local: "Loja Centro",
-        departamento_forms: "Vendas", respostas: {}, status: "Pendente", link_token: token, gerado_por: "RH Teste",
+        departamento_forms: "Vendas", respostas: {}, status: "Pendente", link_token: randomUUID(), gerado_por: "RH Teste",
       },
     }, admin);
     expect(r.status).toBe(200);
+    const token = (r as { dados: Linha }).dados.link_token as string;
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    return token;
   }
 
-  beforeEach(() => criarEntrevista("ED-1", TOKEN));
+  beforeEach(async () => {
+    TOKEN = await criarEntrevista("ED-1");
+  });
 
   it("ler devolve só os campos da página: sem CPF nem telefone", async () => {
     const r = await chamar("entrevista-desligamento", { acao: "ler", token: TOKEN });
@@ -208,8 +271,7 @@ describe("/api/publico/entrevista-desligamento", () => {
   });
 
   it("link com mais de 30 dias é recusado", async () => {
-    const vencido = randomUUID();
-    await criarEntrevista("ED-2", vencido);
+    const vencido = await criarEntrevista("ED-2");
     await prisma.$executeRawUnsafe("update public.entrevistas_desligamento set criado_em = now() - interval '31 days' where id = 'ED-2'");
     expect((await chamar("entrevista-desligamento", { acao: "ler", token: vencido })).corpo).toEqual({ dados: null });
     const r = await chamar("entrevista-desligamento", { acao: "salvar", token: vencido, dados: { respostas: { a: 1 } } });

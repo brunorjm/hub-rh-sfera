@@ -1,9 +1,11 @@
 import "server-only";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { lerJson } from "@/lib/corpo";
 import { ipDoPedido } from "@/lib/limite-login";
 import { consumirLimitePublico, PublicoBloqueado } from "@/lib/limite-publico";
-import { mensagemDoBanco } from "@/server/hub/operacao";
+import { origemPermitida } from "@/lib/origem";
+import { mensagemDoBanco, resumoErro } from "@/server/hub/operacao";
 
 // Links públicos SEM LOGIN (spec §9): parecer do gestor, entrevista de
 // desligamento e NPS da Conexão RH. Cada página chama POST /api/publico/<pagina>
@@ -22,10 +24,11 @@ export type PaginaPublica = "parecer" | "entrevista-desligamento" | "conexao-nps
 const MAX_CORPO = 256 * 1024;
 const MAX_JSON_DADOS = 100_000;
 
-// Tokens: parecer e desligamento são gerados pela tela logada com
-// crypto.randomUUID() (36 caracteres) ou, em navegador sem ele, base 36
-// (Date.now + Math.random); as funções exigem 16+ caracteres. O NPS é
-// 32 bytes em hex (conexao_private.sync_nps), e a função exige ^[0-9a-f]{64}$.
+// Tokens: parecer e desligamento são gerados pelo servidor ao gravar o link
+// (recrutamento.inserir/atualizar: 32 bytes em hex, 64 caracteres); os links
+// antigos, gerados no navegador, são UUID (36) ou base 36. As funções exigem
+// 16+ caracteres. O NPS é 32 bytes em hex (conexao_private.sync_nps), e a
+// função exige ^[0-9a-f]{64}$.
 const tokenLink = z.string().regex(/^[0-9a-z-]{16,64}$/, "Link inválido.");
 const tokenNps = z.string().regex(/^[0-9a-f]{64}$/, "Link inválido.");
 
@@ -35,9 +38,16 @@ const objetoJson = z
 
 const texto = (max: number) => z.string().max(max).nullable().optional();
 
+// A data da entrevista volta ao formulário (render-comum.js); só AAAA-MM-DD.
+const dadosParecer = objetoJson.refine(
+  (d) => d.dataEntrevista == null || d.dataEntrevista === "" ||
+    (typeof d.dataEntrevista === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.dataEntrevista)),
+  "Data da entrevista inválida.",
+);
+
 const salvarParecer = z
   .object({
-    dados: objetoJson,
+    dados: dadosParecer,
     nivelRecomendacao: z.number().int().min(0).max(10).nullable().optional(),
     parecerFinal: texto(200),
     justificativa: texto(20_000),
@@ -118,34 +128,38 @@ const responder = (status: number, corpo: unknown, extra: Record<string, string>
 const erro = (status: number, mensagem: string, extra?: Record<string, string>) => responder(status, { erro: mensagem }, extra);
 
 // Atende POST /api/publico/<pagina>. Separado da rota para os testes chamarem direto.
+const bloqueado = (e: PublicoBloqueado) =>
+  erro(429, "Muitas tentativas. Aguarde alguns minutos e tente de novo.", { "Retry-After": String(e.segundos) });
+
 export async function atenderPublico(pagina: PaginaPublica, req: Request): Promise<Response> {
   // Só a própria origem chama (as páginas públicas são servidas pelo mesmo site).
-  const origem = req.headers.get("origin");
-  if (origem && origem !== new URL(req.url).origin) return erro(403, "Origem não permitida.");
+  if (!origemPermitida(req)) return erro(403, "Origem não permitida.");
 
-  const declarado = Number(req.headers.get("content-length") ?? 0);
-  if (declarado > MAX_CORPO) return erro(413, "Pedido grande demais.");
-  let corpo: unknown;
+  // Limite por IP antes de ler o corpo: robô não faz o servidor ler nada.
+  const ip = ipDoPedido(req.headers);
   try {
-    const bruto = await req.text();
-    if (bruto.length > MAX_CORPO) return erro(413, "Pedido grande demais.");
-    corpo = JSON.parse(bruto);
-  } catch {
-    return erro(400, "Pedido inválido.");
+    await consumirLimitePublico(ip, "pedido");
+  } catch (e) {
+    if (e instanceof PublicoBloqueado) return bloqueado(e);
+    throw e;
   }
 
+  const corpo = await lerJson(req, MAX_CORPO);
+  if (!corpo.ok) return corpo.status === 413 ? erro(413, "Pedido grande demais.") : erro(400, "Pedido inválido.");
+
   const p = PAGINAS[pagina];
-  const entrada = p.entrada.safeParse(corpo);
+  const entrada = p.entrada.safeParse(corpo.valor);
   if (!entrada.success) return erro(400, entrada.error.issues[0]?.message ?? "Pedido inválido.");
   const { acao, token, dados } = entrada.data as { acao: "ler" | "salvar"; token: string; dados?: never };
 
-  try {
-    await consumirLimitePublico(ipDoPedido(req.headers), acao);
-  } catch (e) {
-    if (e instanceof PublicoBloqueado) {
-      return erro(429, "Muitas tentativas. Aguarde alguns minutos e tente de novo.", { "Retry-After": String(e.segundos) });
+  if (acao === "salvar") {
+    try {
+      await consumirLimitePublico(ip, "salvar");
+      await consumirLimitePublico(token, "token");
+    } catch (e) {
+      if (e instanceof PublicoBloqueado) return bloqueado(e);
+      throw e;
     }
-    throw e;
   }
 
   try {
@@ -159,8 +173,8 @@ export async function atenderPublico(pagina: PaginaPublica, req: Request): Promi
     if (banco?.code === "P0001" || banco?.code?.startsWith("22")) {
       return erro(400, mensagemDoBanco(banco.message, "Não foi possível concluir."));
     }
-    // Sem token nem dados no log.
-    console.error(`[publico] ${pagina}.${acao} falhou`, banco?.code ?? (e as Error)?.name ?? "erro");
+    // Sem token nem dados no log: só operação, código e mensagem curta.
+    console.error(`[publico] ${pagina}.${acao} falhou`, resumoErro(e));
     return erro(500, "Não foi possível concluir agora. Tente de novo em instantes.");
   }
 }

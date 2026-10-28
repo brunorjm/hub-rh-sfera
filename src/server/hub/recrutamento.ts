@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { temAlguma } from "@/lib/rbac/permissoes";
 import { ErroOperacao, linhasJson, operacao, type ContextoOperacao, type Operacao } from "@/server/hub/operacao";
@@ -141,6 +142,58 @@ function exigir(mapa: Partial<Record<Operacional, string[]>>, tabela: Operaciona
   if (!temAlguma(ctx.usuario, chaves)) throw new ErroOperacao(403, "Sem permissão para esta operação.");
 }
 
+// Autoria: quem fez vem da sessão, no mesmo formato que as telas antigas
+// gravavam (HUB_USER.nome || HUB_USER.email || "Desconhecido"), nunca do
+// navegador. Ao criar, a coluna é preenchida sempre. Ao editar, quem editou
+// (atualizado_por) é sobrescrito quando vem no pedido; quem criou/enviou/gerou
+// não muda (o valor do navegador é descartado — a tela de Onboarding manda a
+// linha inteira de volta). controle_desligamento.solicitante NÃO entra: é o
+// gestor que pediu o desligamento, escolhido no formulário.
+// pareceres_gestor.preenchido_por vem do gestor externo, pela página pública.
+const AUTORIA_CRIAR: Partial<Record<Operacional, readonly string[]>> = {
+  candidatos: ["atualizado_por"],
+  onboarding: ["enviado_por"],
+  visitas_loja: ["criado_por"],
+  entrevistas_desligamento: ["gerado_por"],
+  controle_desligamento: ["criado_por", "atualizado_por"],
+};
+const AUTORIA_EDITAR: Partial<Record<Operacional, readonly string[]>> = {
+  candidatos: ["atualizado_por"],
+  controle_desligamento: ["atualizado_por"],
+};
+const AUTORIA_FIXA: Partial<Record<Operacional, readonly string[]>> = {
+  onboarding: ["enviado_por"],
+  visitas_loja: ["criado_por"],
+  entrevistas_desligamento: ["gerado_por"],
+  controle_desligamento: ["criado_por"],
+};
+
+// Links públicos: o token sai do servidor (32 bytes aleatórios em hex, 64
+// caracteres), nunca do navegador. Qualquer link_token não vazio no pedido é
+// trocado; a tela monta o link com o token devolvido na linha gravada.
+const COM_LINK = new Set<Operacional>(["pareceres_gestor", "entrevistas_desligamento"]);
+const novoToken = () => randomBytes(32).toString("hex");
+
+function linhaDoServidor(
+  tabela: Operacional,
+  l: Record<string, unknown>,
+  acao: "criar" | "editar",
+  ctx: ContextoOperacao,
+): Record<string, unknown> {
+  const r = { ...l };
+  const autor = quem(ctx.usuario);
+  if (acao === "criar") {
+    for (const c of AUTORIA_CRIAR[tabela] ?? []) r[c] = autor;
+  } else {
+    for (const c of AUTORIA_FIXA[tabela] ?? []) delete r[c];
+    for (const c of AUTORIA_EDITAR[tabela] ?? []) if (Object.hasOwn(r, c)) r[c] = autor;
+  }
+  if (COM_LINK.has(tabela) && Object.hasOwn(r, "link_token") && r.link_token != null && r.link_token !== "") {
+    r.link_token = novoToken();
+  }
+  return r;
+}
+
 // Colunas do pedido, conferidas contra a lista do servidor. O SQL só usa os
 // nomes da lista; os valores vão num parâmetro JSON convertido pelo próprio
 // Postgres (json_populate_record), como o PostgREST fazia.
@@ -240,8 +293,10 @@ const inserir = operacao({
   permissao: unir(INSERIR),
   escrita: true,
   entrada: z.object({ tabela: tabelaOperacional, linha }).strict(),
-  async executar({ tabela, linha: l }, ctx) {
+  async executar({ tabela, linha: pedido }, ctx) {
     exigir(INSERIR, tabela, ctx);
+    colunasDoPedido(tabela, pedido);
+    const l = linhaDoServidor(tabela, pedido, "criar", ctx);
     const cols = colunasDoPedido(tabela, l).map(ident).join(", ");
     const t = `public.${ident(tabela)}`;
     const [r] = await jsonDe(
@@ -258,8 +313,10 @@ const atualizar = operacao({
   permissao: unir(ATUALIZAR),
   escrita: true,
   entrada: z.object({ tabela: tabelaOperacional, id: idLinha, linha }).strict(),
-  async executar({ tabela, id, linha: l }, ctx) {
+  async executar({ tabela, id, linha: pedido }, ctx) {
     exigir(ATUALIZAR, tabela, ctx);
+    colunasDoPedido(tabela, pedido);
+    const l = linhaDoServidor(tabela, pedido, "editar", ctx);
     const sets = colunasDoPedido(tabela, l).map((c) => `${ident(c)} = n.${ident(c)}`).join(", ");
     const t = `public.${ident(tabela)}`;
     const [r] = await jsonDe(

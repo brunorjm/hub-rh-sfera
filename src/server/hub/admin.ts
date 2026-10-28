@@ -214,7 +214,10 @@ const COLUNAS_PERFIL =
   "id, email, nome, perfil, unidades, departamentos, permissoes, created_at, status, status_em, status_por, " +
   "colaborador_external_id, satisfacao_areas";
 
-type PerfilBanco = { id: string; perfil: string; status: string; permissoes: Record<string, unknown> | null };
+type PerfilBanco = {
+  id: string; perfil: string; status: string; permissoes: Record<string, unknown> | null;
+  unidades: string[] | null; departamentos: string[] | null; satisfacao_areas: string[] | null;
+};
 
 const chavesAdmin = (p: Record<string, unknown> | null | undefined) =>
   Object.keys(p ?? {}).filter((k) => k.startsWith("admin.") && p![k] === true).sort();
@@ -240,9 +243,74 @@ function exigirProtecaoAdmin(
 }
 
 async function perfilDe(ctx: ContextoOperacao, id: string): Promise<PerfilBanco & { nome: string; email: string }> {
-  const [p] = await linhasJson(ctx.tx, "select id, nome, email, perfil, status, permissoes from public.profiles where id = $1::uuid", id);
+  const [p] = await linhasJson(
+    ctx.tx,
+    `select id, nome, email, perfil, status, permissoes, unidades, departamentos, satisfacao_areas
+     from public.profiles where id = $1::uuid`,
+    id,
+  );
   if (!p) throw new ErroOperacao(404, "Conta não encontrada.");
   return p as PerfilBanco & { nome: string; email: string };
+}
+
+// ---- Quem administra acessos sem ser Administrador ------------------------------
+// Uma conta com admin.usuarios que não é Administrador só distribui o que ela
+// mesma tem: não concede permissão que não tem, não dá recorte (unidades,
+// departamentos, áreas da Satisfação) mais amplo que o dela, não mexe no
+// próprio cadastro/senha/status e não redefine senha nem "veste" conta que
+// tem mais acesso que ela. Administrador segue livre.
+
+const concedidas = (p: Record<string, unknown> | null | undefined) =>
+  Object.keys(p ?? {}).filter((k) => p![k] === true);
+
+type Recorte = { unidades?: string[] | null; departamentos?: string[] | null; satisfacao_areas?: string[] | null };
+const RECORTES = [
+  ["unidades", "unidades"],
+  ["departamentos", "departamentos"],
+  ["satisfacao_areas", "áreas da Satisfação"],
+] as const;
+
+// Lista vazia = sem restrição. Ator com lista: a do alvo tem de ser não vazia e caber nela.
+function recorteMaisAmplo(ator: string[], alvo: string[]): boolean {
+  if (!ator.length) return false;
+  if (!alvo.length) return true;
+  const meu = new Set(ator);
+  return alvo.some((x) => !meu.has(x));
+}
+
+function exigirRecorteContido(ator: UsuarioHub, alvo: Recorte, acao: string) {
+  const doAtor: Recorte = { unidades: ator.unidades, departamentos: ator.departamentos, satisfacao_areas: ator.satisfacaoAreas };
+  for (const [campo, nome] of RECORTES) {
+    if (recorteMaisAmplo(doAtor[campo] ?? [], alvo[campo] ?? [])) {
+      throw new ErroOperacao(403, `Você não pode ${acao} com ${nome} além das suas.`);
+    }
+  }
+}
+
+// Criar/salvar perfil: toda permissão =true precisa já ser do ator ou já estar =true no alvo.
+function exigirConcessaoPermitida(
+  ator: UsuarioHub,
+  antes: Pick<PerfilBanco, "permissoes"> | null,
+  depois: { permissoes: Record<string, unknown> } & Recorte,
+) {
+  if (ehAdmin(ator)) return;
+  const jaTinha = new Set(concedidas(antes?.permissoes));
+  const minhas = new Set(concedidas(ator.permissoes));
+  const fora = concedidas(depois.permissoes).filter((k) => !minhas.has(k) && !jaTinha.has(k));
+  if (fora.length) {
+    throw new ErroOperacao(403, `Você não pode conceder permissões que não tem: ${fora.slice(0, 5).join(", ")}.`);
+  }
+  exigirRecorteContido(ator, depois, "dar acesso");
+}
+
+// Redefinir senha / "Visualizar como": o alvo não pode ter mais acesso que o ator.
+function exigirAlvoContido(ator: UsuarioHub, alvo: PerfilBanco, acao: string) {
+  if (ehAdmin(ator)) return;
+  const minhas = new Set(concedidas(ator.permissoes));
+  if (ehAdmin(alvo) || concedidas(alvo.permissoes).some((k) => !minhas.has(k))) {
+    throw new ErroOperacao(403, `Só um Administrador pode ${acao} uma conta com permissões que você não tem.`);
+  }
+  exigirRecorteContido(ator, alvo, `${acao} uma conta`);
 }
 
 const CHAVES = new Set(TODAS_AS_CHAVES);
@@ -276,8 +344,13 @@ const salvarPerfil = operacao({
   escrita: true,
   entrada: z.object({ id: z.string().uuid(), email: z.string().max(254).optional(), ...camposPerfil }).strict(),
   async executar(d, ctx) {
+    if (d.id === ctx.usuario.id && !ehAdmin(ctx.usuario)) {
+      throw new ErroOperacao(403, "Você não pode alterar o próprio cadastro. Peça a um Administrador.");
+    }
     const antes = await perfilDe(ctx, d.id);
     exigirProtecaoAdmin(ctx.usuario, antes, d);
+    // Áreas da Satisfação que não vêm no pedido ficam como estão.
+    exigirConcessaoPermitida(ctx.usuario, antes, { ...d, satisfacao_areas: d.satisfacao_areas ?? antes.satisfacao_areas });
     const temColab = d.colaborador_external_id !== undefined;
     const temAreas = d.satisfacao_areas !== undefined;
     // Desligado não é editado: a trigger profiles_bloqueia_edicao_desligado recusa (400).
@@ -306,6 +379,7 @@ const criarAcesso = operacao({
   }).strict(),
   async executar(d, ctx) {
     exigirProtecaoAdmin(ctx.usuario, null, d);
+    exigirConcessaoPermitida(ctx.usuario, null, d);
     const { tx } = ctx;
     const [ja] = await linhasJson(
       tx,
@@ -342,7 +416,11 @@ const alterarStatus = operacao({
     await ctx.tx.$executeRaw`update public.profiles set status = ${status},
         status_em = ${ativo ? null : new Date()}, status_por = ${ativo ? null : quem(ctx.usuario)}
       where id = ${id}::uuid`;
-    if (!ativo) await revogarSessoesDoUsuario(id);
+    if (!ativo) {
+      // Sessões abertas caem pelo banco (usuarioAtual) e, se houver Redis, também por lá.
+      await ctx.tx.$executeRaw`update public.usuarios set sessoes_validas_desde = now() where id = ${id}::uuid`;
+      await revogarSessoesDoUsuario(id);
+    }
     return null;
   },
 });
@@ -356,13 +434,17 @@ const redefinirSenha = operacao({
   escrita: true,
   entrada: z.object({ id: z.string().uuid(), senha }).strict(),
   async executar(d, ctx) {
-    if (d.id === ctx.usuario.id) throw new ErroOperacao(400, "Para trocar a própria senha, use \"Trocar senha\".");
+    if (d.id === ctx.usuario.id) {
+      throw new ErroOperacao(ehAdmin(ctx.usuario) ? 400 : 403, "Para trocar a própria senha, use \"Trocar senha\".");
+    }
     const alvo = await perfilDe(ctx, d.id);
     if (!ehAdmin(ctx.usuario) && (ehAdmin(alvo) || chavesAdmin(alvo.permissoes).length)) {
       throw new ErroOperacao(403, "Só um Administrador pode redefinir a senha de quem tem acesso à Administração.");
     }
+    exigirAlvoContido(ctx.usuario, alvo, "redefinir a senha de");
     if (alvo.status === "desligado") throw new ErroOperacao(400, "Usuário desligado não pode ser editado. Reative o acesso primeiro.");
-    const n = await ctx.tx.$executeRaw`update public.usuarios set senha_hash = ${await gerarHashSenha(d.senha)}, trocar_senha = true
+    const n = await ctx.tx.$executeRaw`update public.usuarios
+      set senha_hash = ${await gerarHashSenha(d.senha)}, trocar_senha = true, sessoes_validas_desde = now()
       where id = ${d.id}::uuid`;
     if (!n) throw new ErroOperacao(404, "Esta conta não tem login.");
     await revogarSessoesDoUsuario(d.id);
@@ -402,12 +484,7 @@ const verComoIniciar = operacao({
     if (alvo.status !== "ativo" || !(await carregarConta(alvoId))) {
       throw new ErroOperacao(400, "Só é possível visualizar como uma conta ativa.");
     }
-    if (!ehAdmin(usuario)) {
-      const minhas = new Set(chavesAdmin(usuario.permissoes));
-      if (ehAdmin(alvo) || chavesAdmin(alvo.permissoes).some((k) => !minhas.has(k))) {
-        throw new ErroOperacao(403, "Só um Administrador pode visualizar como quem tem acesso à Administração que você não tem.");
-      }
-    }
+    exigirAlvoContido(usuario, alvo, "visualizar como");
     if (!usuario.jti) throw new ErroOperacao(400, "Sessão sem identificador. Entre de novo.");
     // Visualização anterior que ficou aberta (aba fechada sem "Sair") é encerrada.
     await tx.$executeRaw`update public.viewas_log set encerrado_em = now()

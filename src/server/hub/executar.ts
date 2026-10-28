@@ -3,7 +3,7 @@ import { comUsuarioRls } from "@/lib/rls";
 import { temAlguma, temPermissao } from "@/lib/rbac/permissoes";
 import type { UsuarioHub } from "@/lib/sessao";
 import { OPERACOES } from "@/server/hub/registro";
-import { ErroOperacao, mensagemDoBanco } from "@/server/hub/operacao";
+import { ErroOperacao, mensagemDoBanco, resumoErro } from "@/server/hub/operacao";
 
 export type ResultadoOperacao = { status: 200; dados: unknown } | { status: number; erro: string };
 
@@ -57,7 +57,8 @@ export async function executarOperacao(
     if (/row-level security|permission denied|read-only transaction/i.test(msg)) {
       return { status: 403, erro: "Sem permissão para estes dados." };
     }
-    console.error(`[hub] ${nome} falhou`, e);
+    // Só operação, código e mensagem curta: nada de consulta, parâmetros ou valores.
+    console.error(`[hub] ${nome} falhou`, resumoErro(e));
     return { status: 500, erro: "Não foi possível concluir. Tente de novo." };
   }
 }

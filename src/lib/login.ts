@@ -25,7 +25,7 @@ export function dispositivoDe(userAgent: string | null | undefined): "celular" |
   return /Mobi|Android|iPhone|iPad/i.test(userAgent ?? "") ? "celular" : "computador";
 }
 
-export async function autenticar(emailBruto: string, senha: string, ip: string, userAgent?: string): Promise<ContaAutenticada> {
+export async function autenticar(emailBruto: string, senha: string, ip: string | null, userAgent?: string): Promise<ContaAutenticada> {
   const email = emailBruto.trim().toLowerCase();
   if (!email || !senha || email.length > 254 || senha.length > 200) throw new FalhaLogin("CREDENCIAIS");
 
