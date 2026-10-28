@@ -56,7 +56,9 @@ services:
       migrate: { condition: service_completed_successfully }
     ports:
       # Quem publica para fora (HTTPS) é o proxy da TI, que aponta para esta porta.
-      - "3060:3000"
+      # Só no loopback: em 0.0.0.0 o Docker abre a porta na internet por fora do
+      # firewall do host (chain DOCKER-USER), contornando Cloudflare e proxy.
+      - "127.0.0.1:3060:3000"
     read_only: true
     tmpfs:
       - /tmp
